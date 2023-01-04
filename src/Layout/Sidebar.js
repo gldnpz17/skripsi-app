@@ -1,11 +1,11 @@
-import { Outlet, useMatch } from "react-router-dom"
+import { Link, Outlet, useMatch } from "react-router-dom"
 import { Configuration, Dashboard } from "../commons/icons"
 
 const SidebarItem = ({ icon, label, href }) => {
   const match = useMatch(href)
 
   return (
-    <a {...{ href }} className='h-6 flex gap-2 group'>
+    <Link to={href} className='h-6 flex gap-2 group'>
       <span className={`h-6 aspect-square group-hover:text-secondary-light group-hover:rotate-12 duration-150 ${Boolean(match) ? 'text-secondary-dark' : 'text-gray-300'}`}>
         {icon}
       </span>
@@ -15,7 +15,7 @@ const SidebarItem = ({ icon, label, href }) => {
       {Boolean(match) && (
         <span className='w-1 h-full bg-secondary-dark rounded-l-md' />
       )}
-    </a>
+    </Link>
   )
 }
 
