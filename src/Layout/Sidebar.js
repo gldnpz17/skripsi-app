@@ -1,5 +1,5 @@
 import { Link, Outlet, useMatch } from "react-router-dom"
-import { Configuration, Dashboard } from "../commons/icons"
+import { Configuration, Dashboard, Project } from "../common/icons"
 
 const SidebarItem = ({ icon, label, href }) => {
   const match = useMatch(href)
@@ -21,6 +21,7 @@ const SidebarItem = ({ icon, label, href }) => {
 
 const SidebarItems = [
   { icon: <Dashboard />, label: 'Dashboard', href: '/' },
+  { icon: <Project />, label: 'Project Details', href: '/projects' },
   { icon: <Configuration />, label: 'Configuration', href: '/configuration' }
 ]
 
@@ -37,7 +38,7 @@ const LayoutSidebar = () => {
           ))}
         </div>
       </div>
-      <div className='flex-grow p-6 rounded-l-3xl bg-dark-1 shadow-2xl'>
+      <div className='flex-grow pl-12 rounded-l-3xl bg-dark-1 shadow-2xl'>
         <Outlet />
       </div>
     </div>
