@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { LoginPage } from './pages/Login';
 import { ConfigurationPage } from './pages/Configuration';
 import { LayoutSidebar } from './Layout/Sidebar';
+import { OAuthSuccessPage } from './pages/OAuthSuccess';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path='configuration' element={<ConfigurationPage />} />
         </Route>
         <Route path='login' element={<LoginPage />} />
+        <Route path='oauth-success' element={<OAuthSuccessPage />} />
       </Routes>
     </BrowserRouter>
   )
