@@ -6,19 +6,24 @@ import { LoginPage } from './pages/Login';
 import { ConfigurationPage } from './pages/Configuration';
 import { LayoutSidebar } from './Layout/Sidebar';
 import { OAuthSuccessPage } from './pages/OAuthSuccess';
+import { QueryClient, QueryClientProvider } from 'react-query';
+
+const queryClient = new QueryClient()
 
 function App() {
   return (
-    <BrowserRouter >
-      <Routes>
-        <Route path='/' element={<LayoutSidebar />}>
-          <Route path='/' element={<DashboardPage />} />
-          <Route path='configuration' element={<ConfigurationPage />} />
-        </Route>
-        <Route path='login' element={<LoginPage />} />
-        <Route path='oauth-success' element={<OAuthSuccessPage />} />
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/' element={<LayoutSidebar />}>
+            <Route path='/' element={<DashboardPage />} />
+            <Route path='configuration' element={<ConfigurationPage />} />
+          </Route>
+          <Route path='login' element={<LoginPage />} />
+          <Route path='oauth-success' element={<OAuthSuccessPage />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 

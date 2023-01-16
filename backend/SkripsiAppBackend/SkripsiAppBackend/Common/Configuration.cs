@@ -16,7 +16,8 @@
             string callbackUrl,
             string tokenUrl,
             string clientAppSecret,
-            string environment
+            string environment,
+            TimeSpan accessTokenLifetime
         )
         {
             JwtSigningSecret = jwtSigningSecret;
@@ -33,6 +34,8 @@
                 "Production" => ExecutionEnvironment.Production,
                 _ => throw new ArgumentException("Invalid environment value."),
             };
+
+            AccessTokenLifetime = accessTokenLifetime;
         }
         public string JwtSigningSecret { get; private set; }
         public string ClientAppId { get; private set; }
@@ -42,5 +45,6 @@
         public string TokenUrl { get; private set; }
         public string ClientAppSecret { get; private set; }
         public ExecutionEnvironment Environment { get; private set; }
+        public TimeSpan AccessTokenLifetime { get; private set; }
     }
 }

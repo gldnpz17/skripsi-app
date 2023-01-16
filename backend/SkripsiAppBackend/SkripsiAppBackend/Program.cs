@@ -1,6 +1,13 @@
+using Jose;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json.Linq;
 using SkripsiAppBackend.Common;
+using SkripsiAppBackend.Controllers;
 using SkripsiAppBackend.Services;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +19,8 @@ var applicationConfiguration = new Configuration(
     callbackUrl: Environment.GetEnvironmentVariable("OAUTH_CALLBACK_URL"),
     tokenUrl: Environment.GetEnvironmentVariable("OAUTH_TOKEN_URL"),
     clientAppSecret: Environment.GetEnvironmentVariable("OAUTH_CLIENT_APP_SECRET"),
-    environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+    environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+    accessTokenLifetime: TimeSpan.FromSeconds(3)
 );
 
 // Add services to the container.
@@ -23,7 +31,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton(applicationConfiguration);
-builder.Services.AddSingleton<IKeyValueService>(new InMemoryKeyValueService());
+builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
+builder.Services.AddSingleton<AccessTokenService>();
 
 var app = builder.Build();
 
@@ -40,6 +49,29 @@ if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.P
 {
     app.UseHttpsRedirection();
 }
+
+app.Use(async (HttpContext context, Func<Task> next) =>
+{
+    var authCookie = context.Request.Cookies["auth"];
+    if (authCookie != null)
+    {
+        var authToken = authCookie.Split(' ')[1];
+
+        var secretBytes = Encoding.UTF8.GetBytes(applicationConfiguration.JwtSigningSecret);
+        var payloadString = JWT.Decode(authToken, secretBytes, JwsAlgorithm.HS256);
+        var payload = JsonSerializer.Deserialize<AuthController.SessionToken>(payloadString);
+
+        var claims = new List<Claim>()
+        {
+            new Claim("sessionId", payload.sessionId.ToString()),
+            new Claim("refreshToken", payload.refreshToken)
+        };
+
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims));
+    }
+
+    await next();
+});
 
 app.UseAuthorization();
 

@@ -7,6 +7,7 @@ using SkripsiAppBackend.Services;
 using System.Text.Json;
 using System.Web;
 using Flurl.Http;
+using SkripsiAppBackend.Common.Deserialization;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -28,18 +29,11 @@ namespace SkripsiAppBackend.Controllers
             public DateTime createdAt { get; set; }
         }
 
+        // TODO: This probably should be moved somewhere more appropriate.
         public class SessionToken
         {
             public Guid sessionId { get; set; }
             public string refreshToken { get; set; }
-        }
-
-        private struct TokenExchangeResult
-        {
-            public string access_token { get; set; }
-            public string token_type { get; set; }
-            public string expires_in { get; set; }
-            public string refresh_token { get; set; }
         }
 
         [HttpGet("create-session")]
