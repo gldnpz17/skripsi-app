@@ -7,6 +7,7 @@ import { ConfigurationPage } from './pages/Configuration';
 import { LayoutSidebar } from './Layout/Sidebar';
 import { OAuthSuccessPage } from './pages/OAuthSuccess';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { TrackNewTeamPage } from './pages/TrackNewTeamProject';
 
 const queryClient = new QueryClient()
 
@@ -18,6 +19,7 @@ function App() {
           <Route path='/' element={<LayoutSidebar />}>
             <Route path='/' element={<DashboardPage />} />
             <Route path='configuration' element={<ConfigurationPage />} />
+            <Route path='track-new' element={<TrackNewTeamPage />} />
           </Route>
           <Route path='login' element={<LoginPage />} />
           <Route path='oauth-success' element={<OAuthSuccessPage />} />

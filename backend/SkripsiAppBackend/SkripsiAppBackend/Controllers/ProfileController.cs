@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SkripsiAppBackend.Services;
 using Flurl.Http;
+using SkripsiAppBackend.Services.AzureDevopsService;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -9,10 +10,10 @@ namespace SkripsiAppBackend.Controllers
     [ApiController]
     public class ProfileController : ControllerBase
     {
-        private AccessTokenService accessTokenService;
-        public ProfileController(AccessTokenService accessTokenService)
+        private IAzureDevopsService azureDevopsService;
+        public ProfileController(IAzureDevopsService azureDevopsService)
         {
-            this.accessTokenService = accessTokenService;
+            this.azureDevopsService = azureDevopsService;
         }
 
         public struct Profile
@@ -20,23 +21,14 @@ namespace SkripsiAppBackend.Controllers
             public string Name { get; set; }
         }
 
-        private struct GetProfileResponse
-        {
-            public string displayName { get; set; }
-            public string publicAlias { get; set; }
-        }
-
         [HttpGet("self")]
         public async Task<ActionResult<Profile>> GetSelfProfile()
         {
-            var response = await "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.3"
-                .WithHeader("Authorization", await accessTokenService.GetToken(HttpContext))
-                .GetAsync()
-                .ReceiveJson<GetProfileResponse>();
+            var profile = azureDevopsService.ReadSelfProfile();
 
             return new Profile()
             {
-                Name = response.displayName
+                Name = profile.DisplayName
             };
         }
     }

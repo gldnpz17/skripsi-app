@@ -1,10 +1,19 @@
 using Jose;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.ObjectPool;
 using Newtonsoft.Json.Linq;
 using SkripsiAppBackend.Common;
+using SkripsiAppBackend.Common.Authentication;
+using SkripsiAppBackend.Common.Authorization;
 using SkripsiAppBackend.Controllers;
+using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services;
+using SkripsiAppBackend.Services.AzureDevopsService;
+using SkripsiAppBackend.Services.ObjectCachingService;
+using System.Net.NetworkInformation;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -20,6 +29,7 @@ var applicationConfiguration = new Configuration(
     tokenUrl: Environment.GetEnvironmentVariable("OAUTH_TOKEN_URL"),
     clientAppSecret: Environment.GetEnvironmentVariable("OAUTH_CLIENT_APP_SECRET"),
     environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+    connectionString: Environment.GetEnvironmentVariable("CONNECTION_STRING"),
     accessTokenLifetime: TimeSpan.FromSeconds(3)
 );
 
@@ -33,6 +43,42 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(applicationConfiguration);
 builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddSingleton<AccessTokenService>();
+
+builder.Services.AddInMemoryObjectCaching(
+    typeof(List<AuthenticationMiddleware.ProfileTeam>)
+);
+
+if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development &&
+    applicationConfiguration.ConnectionString == null)
+{
+    builder.Services.AddTransient<ApplicationDatabase>(service => new InMemoryApplicationDatabase("TestDB"));
+}
+else
+{
+    Console.WriteLine($"Using PostgreSQL database.");
+    PostgresqlApplicationDatabase CreateDatabase()
+    {
+        return new PostgresqlApplicationDatabase(applicationConfiguration.ConnectionString);
+    }
+
+    using (var database = CreateDatabase())
+    {
+        Console.WriteLine("Attempting to migrate database.");
+        await database.Database.MigrateAsync();
+    }
+
+    builder.Services.AddTransient<ApplicationDatabase>(service => CreateDatabase());
+}
+
+builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.AllowTeamMember,
+        policy => policy.Requirements.Add(new AllowTeamMemberRequirement()));
+});
+
+builder.Services.AddSingleton<IAuthorizationHandler, AllowTeamMemberHandler>();
 
 var app = builder.Build();
 
@@ -50,32 +96,11 @@ if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.P
     app.UseHttpsRedirection();
 }
 
-app.Use(async (HttpContext context, Func<Task> next) =>
-{
-    var authCookie = context.Request.Cookies["auth"];
-    if (authCookie != null)
-    {
-        var authToken = authCookie.Split(' ')[1];
+app.UseAzureDevopsService(AzureDevopsServiceType.REST);
 
-        var secretBytes = Encoding.UTF8.GetBytes(applicationConfiguration.JwtSigningSecret);
-        var payloadString = JWT.Decode(authToken, secretBytes, JwsAlgorithm.HS256);
-        var payload = JsonSerializer.Deserialize<AuthController.SessionToken>(payloadString);
-
-        var claims = new List<Claim>()
-        {
-            new Claim("sessionId", payload.sessionId.ToString()),
-            new Claim("refreshToken", payload.refreshToken)
-        };
-
-        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims));
-    }
-
-    await next();
-});
+app.UseAzureDevopsAuthentication();
 
 app.UseAuthorization();
-
-//app.MapControllers();
 
 app.UseEndpoints(endpoints =>
 {

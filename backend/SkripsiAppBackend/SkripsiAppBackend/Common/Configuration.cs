@@ -17,6 +17,7 @@
             string tokenUrl,
             string clientAppSecret,
             string environment,
+            string connectionString,
             TimeSpan accessTokenLifetime
         )
         {
@@ -27,6 +28,7 @@
             CallbackUrl = callbackUrl;
             TokenUrl = tokenUrl;
             ClientAppSecret = clientAppSecret;
+            ConnectionString = connectionString;
 
             Environment = environment switch
             {
@@ -44,6 +46,7 @@
         public string CallbackUrl { get; private set; }
         public string TokenUrl { get; private set; }
         public string ClientAppSecret { get; private set; }
+        public string ConnectionString { get; private set; }
         public ExecutionEnvironment Environment { get; private set; }
         public TimeSpan AccessTokenLifetime { get; private set; }
     }

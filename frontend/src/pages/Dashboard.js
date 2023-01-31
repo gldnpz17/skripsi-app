@@ -2,9 +2,12 @@ import { useMemo } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { Cash, Configuration, OpenInNew, Speedometer } from "../common/icons"
+import { Cash, Configuration, OpenInNew, PlusCircle, Speedometer } from "../common/icons"
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
+import { useQuery } from "react-query"
+import { readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
+import { Button } from "../Components/Common/Button"
 
 const ExternalLink = ({ className, children }) => (
   <Link className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
@@ -13,40 +16,49 @@ const ExternalLink = ({ className, children }) => (
   </Link>
 )  
 
-const ProjectListItem = ({ project: { title, status }, selected = false }) => {
+const TeamListItem = ({ team: { id, name }, selected = false }) => {
   return (
     <div className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden hover:-translate-x-1 duration-150 hover:brightness-125 bg-dark-2'>
       <div className={`absolute top-0 bottom-0 left-0 w-1 ${selected && 'bg-secondary-dark'} duration-150`} />
       <span className='px-4 py-2 flex'>
         <span className='flex-grow font-semibold'>
-          {title}
+          {name}
         </span>
-        <span className={`${Format.statusColor(status, 'text-')}`}>
-          {Format.status(status)}
+        <span className={`${Format.statusColor('healthy', 'text-')}`}>
+          {Format.status('healthy')}
         </span>
       </span>
     </div>
   )
 }
 
-const projects = [
-  { title: 'Project A', status: 'healthy' },
-  { title: 'Project B', status: 'atRisk' },
-  { title: 'Project C', status: 'critical' },
-  { title: 'Project D', status: 'healthy' },
-  { title: 'Project E', status: 'healthy' }
-]
+const TeamsListSection = () => {
+  const {
+    data: teams,
+    isLoading: teamsLoading
+  } = useQuery(['projects', 'tracked'], readTrackedTeams)
 
-const ProjectListSection = () => (
-  <div>
-    <div className='mb-3 text-gray-300 font-semibold'>Projects</div>
-    <div className='flex flex-col gap-4'>
-      {projects.map((project, index) => (
-        <ProjectListItem key={index} {...{ project }} selected={index == 1} />
-      ))}
+  return (
+    <div>
+      <div className='mb-3 text-gray-300 font-semibold'>Teams</div>
+      {!teamsLoading && (
+        <>
+          <div className='flex flex-col gap-4'>
+            {teams.map(team => (
+              <TeamListItem key={team.id} {...{ team }} selected={false} />
+            ))}
+          </div>
+          <a href='/track-new' target='_blank'>
+            <Button className='w-full'>
+              <PlusCircle className='h-4' />
+              <span>Track Team</span>
+            </Button>
+          </a>
+        </>
+      )}
     </div>
-  </div>
-)
+  )
+}
 
 const HealthComponentStatus = ({ title, statusText, severity }) => {
   const color = ['green', 'orange', 'red'][severity]
@@ -232,7 +244,7 @@ const DashboardPage = () => {
       <div className='w-64 top-8 bottom-0 right-12 fixed pl-4'>
         {/* Divider */}
         <div className='w-px absolute top-0 bottom-8 left-0 bg-gray-700' />
-        <ProjectListSection />
+        <TeamsListSection />
       </div>
     </div>
   )

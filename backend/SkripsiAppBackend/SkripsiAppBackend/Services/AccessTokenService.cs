@@ -1,6 +1,8 @@
 ﻿using SkripsiAppBackend.Common.Deserialization;
 using SkripsiAppBackend.Common;
 using Flurl.Http;
+using SkripsiAppBackend.Common.Authentication;
+using System.Security.Claims;
 
 namespace SkripsiAppBackend.Services
 {
@@ -26,7 +28,7 @@ namespace SkripsiAppBackend.Services
                         assertion = refreshToken,
                         redirect_uri = configuration.CallbackUrl
                     })
-                    .ReceiveJson<TokenExchangeResult>();
+                    .ReceiveJson<TokenExchangeResponse>();
 
                 var lifetimeTask = Task.Run(async () =>
                 {
@@ -44,11 +46,6 @@ namespace SkripsiAppBackend.Services
             }
 
             return $"Bearer {accessTokens[refreshToken]}";
-        }
-
-        public async Task<string> GetToken(HttpContext context)
-        {
-            return await GetToken(context.User.FindFirst("refreshToken").Value);
         }
     }
 }

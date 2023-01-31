@@ -33,7 +33,10 @@ namespace SkripsiAppBackend.Controllers
         public class SessionToken
         {
             public Guid sessionId { get; set; }
+            public string profileId { get; set; }
+            public string publicAlias { get; set; }
             public string refreshToken { get; set; }
+            public string displayName { get; set; }
         }
 
         [HttpGet("create-session")]
@@ -112,7 +115,7 @@ namespace SkripsiAppBackend.Controllers
 
             sessionIdKeyValueService.Delete(preSessionToken.sessionId.ToString());
 
-            var result = await configuration.TokenUrl
+            var tokenResponse = await configuration.TokenUrl
                 .PostUrlEncodedAsync(new {
                     client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
                     client_assertion = configuration.ClientAppSecret,
@@ -120,12 +123,22 @@ namespace SkripsiAppBackend.Controllers
                     assertion = code,
                     redirect_uri = configuration.CallbackUrl
                 })
-                .ReceiveJson<TokenExchangeResult>();
+                .ReceiveJson<TokenExchangeResponse>();
 
+            var profileResponse = await "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.3"
+                .WithHeader("Authorization", $"Bearer {tokenResponse.access_token}")
+                .GetAsync()
+                .ReceiveJson<ProfileResponse>();
+
+            // TODO: Might need to implement a refresh and access token system in the future.
+            // Because things like the display name may change.
             var sessionTokenPayload = new SessionToken()
             {
                 sessionId = preSessionToken.sessionId,
-                refreshToken = result.refresh_token
+                profileId = profileResponse.id,
+                publicAlias = profileResponse.publicAlias,
+                refreshToken = tokenResponse.refresh_token,
+                displayName = profileResponse.displayName
             };
 
             var sessionToken = EncodeToken(sessionTokenPayload);
