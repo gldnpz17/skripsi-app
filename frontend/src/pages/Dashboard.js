@@ -43,7 +43,7 @@ const TeamsListSection = () => {
       <div className='mb-3 text-gray-300 font-semibold'>Teams</div>
       {!teamsLoading && (
         <>
-          <div className='flex flex-col gap-4'>
+          <div className='flex flex-col gap-4 mb-6'>
             {teams.map(team => (
               <TeamListItem key={team.id} {...{ team }} selected={false} />
             ))}

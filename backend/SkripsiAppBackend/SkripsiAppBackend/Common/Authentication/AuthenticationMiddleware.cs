@@ -1,6 +1,6 @@
 ﻿using Jose;
 using SkripsiAppBackend.Controllers;
-using SkripsiAppBackend.DomainModel;
+using SkripsiAppBackend.Persistence.Models;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.ObjectCachingService;
 using System.Security.Claims;

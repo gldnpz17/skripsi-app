@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using SkripsiAppBackend.Common.Authentication;
-using SkripsiAppBackend.DomainModel;
+using SkripsiAppBackend.Persistence.Models;
 
 namespace SkripsiAppBackend.Common.Authorization
 {

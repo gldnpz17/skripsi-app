@@ -1,22 +1,12 @@
-using Jose;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.ObjectPool;
-using Newtonsoft.Json.Linq;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Common.Authorization;
-using SkripsiAppBackend.Controllers;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.ObjectCachingService;
-using System.Net.NetworkInformation;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,26 +38,11 @@ builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>)
 );
 
-if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development &&
-    applicationConfiguration.ConnectionString == null)
+if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
 {
-    builder.Services.AddTransient<ApplicationDatabase>(service => new InMemoryApplicationDatabase("TestDB"));
-}
-else
-{
-    Console.WriteLine($"Using PostgreSQL database.");
-    PostgresqlApplicationDatabase CreateDatabase()
-    {
-        return new PostgresqlApplicationDatabase(applicationConfiguration.ConnectionString);
-    }
-
-    using (var database = CreateDatabase())
-    {
-        Console.WriteLine("Attempting to migrate database.");
-        await database.Database.MigrateAsync();
-    }
-
-    builder.Services.AddTransient<ApplicationDatabase>(service => CreateDatabase());
+    var database = new Database(applicationConfiguration.ConnectionString);
+    database.Migrate();
+    builder.Services.AddSingleton(database);
 }
 
 builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
