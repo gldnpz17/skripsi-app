@@ -7,6 +7,7 @@ using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.ObjectCachingService;
+using SkripsiAppBackend.UseCases;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(applicationConfiguration);
 builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddSingleton<AccessTokenService>();
+
+builder.Services.AddSingleton<TeamUseCases>();
 
 builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>)

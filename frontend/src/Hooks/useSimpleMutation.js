@@ -8,14 +8,16 @@ const useSimpleMutation = (mutate, queryKeys = []) => {
     mutateAsync 
   } = useMutation(mutate, {
     onSuccess: () => {
-      queryKeys.forEach(queryClient.refetchQueries)
+      queryKeys.forEach(key => queryClient.refetchQueries(key))
     }
   })
 
   return {
     isLoading,
-    mutateAsync: (getArgs) => async () => {
-      await mutateAsync(getArgs())
+    mutateAsync: (getArgs) => {
+      return async function() {
+        await mutateAsync(getArgs.apply(null, arguments))
+      }
     }
   }
 }

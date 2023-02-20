@@ -1,10 +1,10 @@
 import { useQuery } from "react-query"
 import { Link, Outlet, useMatch } from "react-router-dom"
 import { getSelfProfile } from "../api-requests/Profile"
-import { Configuration, Dashboard, LogOut, Project } from "../common/icons"
+import { Configuration, Dashboard, LogOut, Project, Team } from "../common/icons"
 
-const SidebarItem = ({ icon, label, href }) => {
-  const match = useMatch(href)
+const SidebarItem = ({ icon, label, href, pathMatch }) => {
+  const match = useMatch(pathMatch ?? href)
 
   return (
     <Link to={href} className='h-6 flex gap-2 group'>
@@ -23,7 +23,7 @@ const SidebarItem = ({ icon, label, href }) => {
 
 const SidebarItems = [
   { icon: <Dashboard />, label: 'Dashboard', href: '/' },
-  { icon: <Project />, label: 'Project Details', href: '/projects' },
+  { icon: <Team />, label: 'Team Details', href: '/teams', pathMatch: '/teams/:organizationName?/:projectId?/:teamId?' },
   { icon: <Configuration />, label: 'Configuration', href: '/configuration' }
 ]
 

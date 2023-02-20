@@ -9,7 +9,8 @@ const Format = {
     const dict = {
       'healthy': 'Healthy',
       'atRisk': 'At Risk',
-      'critical': 'Critical'
+      'critical': 'Critical',
+      'noData': 'No Data'
     }
 
     return dict[status]
@@ -19,10 +20,14 @@ const Format = {
     const dict = {
       'healthy': 'green-300',
       'atRisk': 'yellow-300',
-      'critical': 'red-300'
+      'critical': 'red-300',
+      'noData': 'gray-300'
     }
 
     return prefix + dict[status]
+  },
+  month: (date) => {
+    return Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date)
   }
 }
 

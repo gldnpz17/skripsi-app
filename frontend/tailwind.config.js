@@ -19,8 +19,11 @@ module.exports = {
     'bg-red-300',
     'bg-yellow-300',
     'bg-green-300',
+    'bg-gray-300',
     'text-red-300',
     'text-yellow-300',
     'text-green-300',
+    'text-gray-300',
+    'text-white'
   ]
 }

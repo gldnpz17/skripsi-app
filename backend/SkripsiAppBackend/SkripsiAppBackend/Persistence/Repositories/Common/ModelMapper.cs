@@ -4,10 +4,20 @@
     {
         public static List<TTarget> MapTo<TTarget>(this List<dynamic> sources)
         {
+            if (sources == null)
+            {
+                return null;
+            }
+
             List<TTarget> targets = new();
 
             sources.ForEach(source =>
             {
+                if (source == null)
+                {
+                    targets.Add(source);
+                }
+
                 targets.Add(ModelMapper.MapTo<TTarget>(source));
             });
 
@@ -30,7 +40,6 @@
 
             foreach (var targetProperty in targetProperties)
             {
-                //var value = source.GetType().GetProperty(targetProperty.Name.CamelCaseToSnakeCase()).GetValue(source);
                 var value = sourceDictionary[targetProperty.Name.CamelCaseToSnakeCase()];
                 targetProperty.SetValue(target, value);
             }

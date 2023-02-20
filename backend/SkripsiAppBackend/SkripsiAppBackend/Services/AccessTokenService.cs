@@ -38,7 +38,6 @@ namespace SkripsiAppBackend.Services
 
                     var task = lifetimeTasks[refreshToken];
                     lifetimeTasks.Remove(refreshToken);
-                    task.Dispose();
                 });
 
                 accessTokens[refreshToken] = result.access_token;

@@ -19,6 +19,8 @@ namespace SkripsiAppBackend.Persistence.Repositories
 
         public async Task<List<TrackedTeam>> ReadByKeys(List<TrackedTeamKey> keys)
         {
+            // TODO: Why not just send multiple queries?
+
             // I'm somewhat annoyed. EF Core doesn't seem to support temporary tables very well and dapper
             // doesn't support bulk inserts. This solution is suboptimal but it will do for now.
 
@@ -36,14 +38,28 @@ SELECT tracked_teams.* FROM tracked_teams
 
             using var connection = GetConnection();
 
+            // Maintain an open connection so that the temporary table persists.
             await connection.OpenAsync();
             await connection.ExecuteAsync(createTempTableSql);
-            await Task.WhenAll(
+
+            // We should be running these operations in parallel
+            // but we can't use the same connection for all those connections.
+            // But we need to maintain the connection to use the temporary table.
+            foreach (var key in keys)
+            {
+                await connection.ExecuteAsync(insertKeyRowSql, key);
+            }
+            /*await Task.WhenAll(
                 keys.Select(
                     async (key) => await connection.ExecuteAsync(insertKeyRowSql, key)
                 )
-            );
-            return (await connection.QueryAsync(querySql)).ToList().MapTo<TrackedTeam>();
+            );*/
+
+            var result = (await connection.QueryAsync(querySql)).ToList().MapTo<TrackedTeam>();
+
+            await connection.CloseAsync();
+
+            return result;
         }
 
         public async Task<TrackedTeam> ReadByKey(string organizationName, string projectId, string teamId)
@@ -52,7 +68,7 @@ SELECT tracked_teams.* FROM tracked_teams
 SELECT * FROM tracked_teams WHERE 
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
-    teamId = @TeamId AND
+    team_id = @TeamId AND
     deleted = false;
 ";
 
@@ -106,6 +122,30 @@ WHERE
                 OrganizationName = organizationName,
                 ProjectId = projectId,
                 TeamId = teamId
+            };
+
+            await connection.ExecuteAsync(sql, args);
+        }
+
+        public async Task UpdateDeadline(string organizationName, string projectId, string teamId, DateTime deadline)
+        {
+            var sql = @"
+UPDATE tracked_teams 
+SET deadline = @Deadline
+WHERE
+    organization_name = @OrganizationName AND
+    project_id = @ProjectId AND
+    team_id = @TeamId
+";
+
+            using var connection = GetConnection();
+
+            var args = new
+            {
+                OrganizationName = organizationName,
+                ProjectId = projectId,
+                TeamId = teamId,
+                Deadline = deadline
             };
 
             await connection.ExecuteAsync(sql, args);

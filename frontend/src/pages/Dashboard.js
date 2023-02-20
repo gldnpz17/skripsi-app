@@ -1,27 +1,29 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { Cash, Configuration, OpenInNew, PlusCircle, Speedometer } from "../common/icons"
+import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew, PlusCircle, Speedometer } from "../common/icons"
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
-import { readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
+import { readTeamDetails, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
 import { Button } from "../Components/Common/Button"
+import { IconButton } from '../Components/Common/IconButton'
+import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
 
-const ExternalLink = ({ className, children }) => (
-  <Link className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
+const ExternalLink = ({ className, children, to }) => (
+  <Link {...{ to }} className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
     <span>{children}</span>
     <OpenInNew className='h-4' />
   </Link>
 )  
 
-const TeamListItem = ({ team: { id, name }, selected = false }) => {
+const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   return (
-    <div className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden hover:-translate-x-1 duration-150 hover:brightness-125 bg-dark-2'>
+    <div {...{ onClick }} className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden hover:-translate-x-1 duration-150 hover:brightness-125 bg-dark-2'>
       <div className={`absolute top-0 bottom-0 left-0 w-1 ${selected && 'bg-secondary-dark'} duration-150`} />
       <span className='px-4 py-2 flex'>
-        <span className='flex-grow font-semibold'>
+        <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
           {name}
         </span>
         <span className={`${Format.statusColor('healthy', 'text-')}`}>
@@ -32,7 +34,7 @@ const TeamListItem = ({ team: { id, name }, selected = false }) => {
   )
 }
 
-const TeamsListSection = () => {
+const TeamsListSection = ({ setSelectedTeam }) => {
   const {
     data: teams,
     isLoading: teamsLoading
@@ -45,7 +47,7 @@ const TeamsListSection = () => {
         <>
           <div className='flex flex-col gap-4 mb-6'>
             {teams.map(team => (
-              <TeamListItem key={team.id} {...{ team }} selected={false} />
+              <TeamListItem key={team.id} {...{ team }} selected={false} onClick={() => setSelectedTeam(team)} />
             ))}
           </div>
           <a href='/track-new' target='_blank'>
@@ -60,14 +62,27 @@ const TeamsListSection = () => {
   )
 }
 
-const HealthComponentStatus = ({ title, statusText, severity }) => {
-  const color = ['green', 'orange', 'red'][severity]
+const HealthComponentStatus = ({ title, statusText, severity, children }) => {
+  const textColor = useMemo(() => {
+    if (severity === undefined) {
+      return 'text-white'
+    }
+
+    const color = ['green', 'orange', 'red'][severity]
+    return `text-${color}-300`
+  }, [severity])
 
   return (
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
       <div className='text-gray-400 text-sm font-bold mb-1'>{title}</div>
-      <div className={`text-${color}-300 text-xl`}>
+      <div className={`${textColor} text-xl`}>
         {statusText}
+      </div>
+      {children && (
+        <hr className='my-3 border-gray-700' />
+      )}
+      <div>
+        {children}
       </div>
     </div>
   )
@@ -90,12 +105,6 @@ const DATASET = {
 }
 
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, Title, Tooltip, Legend)
-
-const IconButton = ({ children, onClick }) => (
-  <div className='hover:text-secondary-light rounded-full hover:rotate-12 duration-150 cursor-pointer' {...{ onClick }}>
-    {children}
-  </div>
-)
 
 const HealthLineChart = () => (
   <div className='h-72 flex flex-col w-full rounded-md bg-dark-2 p-4 border border-gray-700'>
@@ -150,27 +159,13 @@ const HealthLineChart = () => (
 )
 
 const REPORTS = [
-  { date: '6 January 2023', velocity: 33, expenditureRate: 3300000, status: 'critical' },
-  { date: '9 February 2023', velocity: 23, expenditureRate: 3100000, status: 'atRisk' },
-  { date: '5 March 2023', velocity: 12, expenditureRate: 3500000, status: 'critical' },
-  { date: '3 April 2023', velocity: 36, expenditureRate: 3600000, status: 'critical' },
-  { date: '5 May 2023', velocity: 38, expenditureRate: 3700000, status: 'atRisk' },
-  { date: '6 June 2023', velocity: 45, expenditureRate: 3200000, status: 'healthy' }
+  { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'critical' },
+  { date: new Date(), velocity: 23, expenditureRate: 3100000, status: 'atRisk' },
+  { date: new Date(), velocity: 12, expenditureRate: 3500000, status: 'critical' },
+  { date: new Date(), velocity: 36, expenditureRate: 3600000, status: 'critical' },
+  { date: new Date(), velocity: 38, expenditureRate: 3700000, status: 'atRisk' },
+  { date: new Date(), velocity: 45, expenditureRate: 3200000, status: 'healthy' }
 ]
-
-const ReportItem = ({ report: { date, velocity, expenditureRate, status } }) => (
-  <div className='flex items-center bg-dark-2 p-4 rounded-md border border-gray-700 shadow cursor-pointer hover:brightness-125 duration-150'>
-    <span className='mr-2'>{date}</span>
-    <span className={`${Format.statusColor(status, 'bg-')} text-black px-2 rounded text-sm`}>
-      {Format.status(status)}
-    </span>
-    <span className='flex-grow'></span>
-    <Speedometer className='h-4 mr-2' />
-    <span className='mr-6 text-gray-400'>{velocity} efforts/sprint</span>
-    <Cash className='h-4 mr-2' />
-    <span className='text-gray-400'>{Format.currency(expenditureRate)}/sprint</span>
-  </div>
-)
 
 const ReportsList = ({ reports }) => (
   <div>
@@ -181,6 +176,7 @@ const ReportsList = ({ reports }) => (
       </ExternalLink>
     </div>
     <div className='flex flex-col gap-4'>
+      <BlankReportItem date={new Date()} />
       {reports.map(report => (
         <ReportItem key={report.date} {...{ report }} />
       ))}
@@ -188,63 +184,135 @@ const ReportsList = ({ reports }) => (
   </div>
 )
 
-const ProjectDetailSection = () => (
-  <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
-    <div className='flex items-center col-span-12'>
-      <div className='flex-grow'>
-        <h1 className='text-2xl mb-1'>Project Name</h1>
-        <ExternalLink>Project Settings</ExternalLink>
-      </div>
-      <div>
-        <div className='text-sm text-gray-400 text-right mb-1'>Overall Project Health</div>
-        <div className='flex gap-2 items-center'>
-          <ProgressBar progress={0.8} className='w-32' />
-          <span>
-            80%
-          </span>
+const HealthComponentInformation = ({ title, Icon, content }) => (
+  <div className='flex flex-col'>
+    <div className='flex gap-1 items-center'>
+      <Icon className='h-4' />
+      <div className='text-sm text-gray-400'>{title}</div>
+    </div>
+    <div>{content}</div>
+  </div>
+)
+
+const TeamDetailsSection = ({ selectedTeam }) => {
+  const organizationName = selectedTeam.organization.name
+  const projectId = selectedTeam.project.id
+  const teamId = selectedTeam.id
+
+  const {
+    data: teamData,
+    isLoading: teamsLoading
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId],
+    async () => await readTeamDetails({ organizationName, projectId, teamId })
+  )
+  
+  return (
+    <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
+      <div className='flex items-center col-span-12'>
+        <div className='flex-grow'>
+          <h1 className='text-2xl mb-1'>Team Name</h1>
+          <ExternalLink
+            to={`/teams/${organizationName}/${projectId}/${teamId}`}
+          >
+            Team Settings
+          </ExternalLink>
+        </div>
+        <div>
+          <div className='text-sm text-gray-400 text-right mb-1'>Overall Project Health</div>
+          <div className='flex gap-2 items-center'>
+            <ProgressBar progress={0.8} className='w-32' />
+            <span>
+              80%
+            </span>
+          </div>
         </div>
       </div>
+      <div className='col-span-4'>
+        <HealthComponentStatus
+          title="Timeliness"
+          statusText="No Value"
+          severity={undefined}
+        >
+          {/* <HealthComponentInformation
+            Icon={CalendarCheck}
+            title='Estimated Completion Date'
+            content='5 Jan 2023 (5 days ahead)'
+          /> */}
+          <div>
+            <div>Team deadline not set</div>
+            <ExternalLink
+              to={`/teams/${organizationName}/${projectId}/${teamId}`}
+            >
+              Set deadline
+            </ExternalLink>
+          </div>
+        </HealthComponentStatus>
+      </div>
+      <div className='col-span-4'>
+        <HealthComponentStatus
+          title="Feature Completeness"
+          statusText="Complete"
+          severity={0}
+        >
+          <HealthComponentInformation
+            Icon={CheckeredFlag}
+            title='Estimated Feature Completion'
+            content='100%'
+          />
+        </HealthComponentStatus>
+      </div>
+      <div className='col-span-4'>
+        <HealthComponentStatus
+          title="Budget"
+          statusText="Over Budget"
+          severity={0}
+        >
+          <HealthComponentInformation
+            Icon={CashStack}
+            title='Estimated Cost Variance'
+            content='Rp. 13.400.000,00'
+          />
+        </HealthComponentStatus>
+      </div>
+      <div className='col-span-12'>
+        <HealthLineChart />
+      </div>
+      <div className='col-span-12 mb-8'>
+        <ReportsList reports={REPORTS} />
+      </div>
     </div>
-    <div className='col-span-4'>
-      <HealthComponentStatus
-        title="Timeliness"
-        statusText="On Time"
-        severity={0}
-      />
+  )
+}
+
+const NoSelectedTeamPlaceholder = () => (
+  <div className='flex flex-col items-center justify-center h-[90vh]'>
+    <div className='text-gray-500 text-3xl mb-2'>
+      No team selected
     </div>
-    <div className='col-span-4'>
-      <HealthComponentStatus
-        title="Budget"
-        statusText="Under Budget"
-        severity={0}
-      />
-    </div>
-    <div className='col-span-4'>
-      <HealthComponentStatus
-        title="Scope Creep"
-        statusText="Medium"
-        severity={1}
-      />
-    </div>
-    <div className='col-span-12'>
-      <HealthLineChart />
-    </div>
-    <div className='col-span-12 mb-8'>
-      <ReportsList reports={REPORTS} />
+    <div className='text-gray-600 text-lg'>
+      Please select a team
     </div>
   </div>
 )
 
 const DashboardPage = () => {
+  const [selectedTeam, setSelectedTeam] = useState(null)
+
   return (
     <div className='h-full overflow-auto'>
       <div className='mr-80 mt-8'>
-        <ProjectDetailSection />
+        {selectedTeam && (
+          <TeamDetailsSection {...{ selectedTeam }} />
+        )}
+        {!selectedTeam && (
+          <NoSelectedTeamPlaceholder />
+        )}
       </div>
       <div className='w-64 top-8 bottom-0 right-12 fixed pl-4'>
         {/* Divider */}
         <div className='w-px absolute top-0 bottom-8 left-0 bg-gray-700' />
-        <TeamsListSection />
+        <TeamsListSection {...{ setSelectedTeam }} />
       </div>
     </div>
   )

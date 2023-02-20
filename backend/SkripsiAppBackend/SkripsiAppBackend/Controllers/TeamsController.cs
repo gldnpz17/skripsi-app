@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.ObjectCachingService;
+using SkripsiAppBackend.UseCases;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
@@ -21,21 +23,25 @@ namespace SkripsiAppBackend.Controllers
         private readonly IAzureDevopsService azureDevopsService;
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
+        private readonly TeamUseCases teamUseCases;
 
         public TeamsController(
             IAzureDevopsService azureDevopsService, 
             Database database,
-            IAuthorizationService authorizationService)
+            IAuthorizationService authorizationService,
+            TeamUseCases teamUseCases)
         {
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
+            this.teamUseCases = teamUseCases;
         }
 
         public struct Team
         {
             public string Id { get; set; }
             public string Name { get; set; }
+            public DateTime? Deadline { get; set; }
 
             public IAzureDevopsService.Organization Organization { get; set; }
             public IAzureDevopsService.Project Project { get; set; }
@@ -110,14 +116,16 @@ namespace SkripsiAppBackend.Controllers
         public struct TeamDetails
         {
             public Team Team { get; set; }
-            // TODO: Add further details for the dashboard.
+            public double AverageVelocity { get; set; }
+            public int EstimatedRemainingWorkingDays { get; set; }
+            public DateTime EstimatedEndDate { get; set; }
         }
 
-        [HttpGet]
+        [HttpGet("{organizationName}/{projectId}/{teamId}")]
         public async Task<ActionResult<TeamDetails>> ReadTeamDetailsById(
-            [FromQuery] string organizationName,
-            [FromQuery] string projectId,
-            [FromQuery] string teamId) 
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId) 
         {
             var trackedTeam = await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
 
@@ -127,27 +135,78 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var projectTask = azureDevopsService.ReadProject(organizationName, projectId);
-            var teamTask = azureDevopsService.ReadTeam(organizationName, projectId, teamId);
+            var latestSprints = GetLatestSprints();
+            var backlogItems = azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
+            var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
 
-            await Task.WhenAll(projectTask, teamTask);
+            await Task.WhenAll(latestSprints, backlogItems, workDays);
 
-            var project = await projectTask;
-            var team = await teamTask;
+            var velocity = teamUseCases.CalculateAverageVelocity(latestSprints.Result);
+            var remainingWorkingDays = teamUseCases.CalculateRemainingWorkingDays(velocity, backlogItems.Result);
+            var endDate = teamUseCases.GetEstimatedEndDate(DateTime.Now, remainingWorkingDays, workDays.Result);
 
             return new TeamDetails()
             {
-                Team = new Team()
+                Team = await GetTeam(),
+                AverageVelocity = velocity,
+                EstimatedRemainingWorkingDays = remainingWorkingDays,
+                EstimatedEndDate = endDate
+            };
+
+            async Task<Team> GetTeam()
+            {
+                var projectTask = azureDevopsService.ReadProject(organizationName, projectId);
+                var teamTask = azureDevopsService.ReadTeam(organizationName, projectId, teamId);
+
+                await Task.WhenAll(projectTask, teamTask);
+
+                var project = await projectTask;
+                var team = await teamTask;
+
+                return new Team()
                 {
                     Id = teamId,
                     Name = team.Name,
                     Project = project,
+                    Deadline = trackedTeam.Deadline,
                     Organization = new IAzureDevopsService.Organization()
                     {
                         Name = organizationName
                     }
-                }
-            };
+                };
+            }
+
+            async Task<List<TeamUseCases.SprintWorkItems>> GetLatestSprints(int count = 3)
+            {
+                var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+
+                var latestCompletedSprints = sprints
+                    .FindAll(sprint => 
+                        sprint.TimeFrame == IAzureDevopsService.SprintTimeFrame.Current ||
+                        sprint.TimeFrame == IAzureDevopsService.SprintTimeFrame.Past)
+                    .OrderBy(sprint => sprint.EndDate)
+                    .Take(count);
+
+                var sprintWorkItems = new List<TeamUseCases.SprintWorkItems>();
+                var fetchTasks = latestCompletedSprints.Select(async (sprint) =>
+                {
+                    var workItems = await azureDevopsService.ReadSprintWorkItems(
+                        organizationName,
+                        projectId,
+                        teamId,
+                        sprint.Id);
+
+                    sprintWorkItems.Add(new TeamUseCases.SprintWorkItems()
+                    {
+                        Sprint = sprint,
+                        WorkItems = workItems
+                    });
+                });
+
+                await Task.WhenAll(fetchTasks);
+
+                return sprintWorkItems;
+            }
         }
 
         public struct TrackTeamDto
@@ -169,6 +228,30 @@ namespace SkripsiAppBackend.Controllers
         public async Task<ActionResult> UntrackTeam([FromBody] TrackTeamDto dto)
         {
             await database.TrackedTeams.UntrackTeam(dto.OrganizationName, dto.ProjectId, dto.TeamId);
+
+            return Ok();
+        }
+
+        public struct UpdateTeamDto
+        {
+            public DateTime? Deadline { get; set; }
+        }
+
+        [HttpPatch("{organizationName}/{projectId}/{teamId}")]
+        public async Task<ActionResult> UpdateTeam(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId,
+            [FromBody] UpdateTeamDto dto
+        )
+        {
+            if (dto.Deadline != null)
+            {
+                await database.TrackedTeams.UpdateDeadline(organizationName,
+                                                           projectId,
+                                                           teamId,
+                                                           (DateTime)dto.Deadline);
+            }
 
             return Ok();
         }
