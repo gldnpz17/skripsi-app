@@ -57,7 +57,7 @@ const Format = {
     }
   },
   timeliness: (score) => {
-    if (typeof(score) != 'number') return ['No Value', undefined]
+    if (typeof(score) != 'number') return ['Can\'t Calculate', undefined]
 
     if (score >= -1 && score < 0) {
       return ['Likely Late', 'critical']
@@ -66,7 +66,7 @@ const Format = {
     } else if (score >= 0.1 && score <= 1) {
       return ['Ahead of Time', 'healthy']
     } else {
-      return ['No Value', undefined]
+      return ['Can\'t Calculate', undefined]
     }
   }
 }
