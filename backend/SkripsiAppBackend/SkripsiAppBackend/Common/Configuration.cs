@@ -18,7 +18,8 @@
             string clientAppSecret,
             string environment,
             string connectionString,
-            TimeSpan accessTokenLifetime
+            TimeSpan accessTokenLifetime,
+            double timelinessMarginFactor
         )
         {
             JwtSigningSecret = jwtSigningSecret;
@@ -38,6 +39,8 @@
             };
 
             AccessTokenLifetime = accessTokenLifetime;
+
+            TimelinessMarginFactor = timelinessMarginFactor;
         }
         public string JwtSigningSecret { get; private set; }
         public string ClientAppId { get; private set; }
@@ -49,5 +52,6 @@
         public string ConnectionString { get; private set; }
         public ExecutionEnvironment Environment { get; private set; }
         public TimeSpan AccessTokenLifetime { get; private set; }
+        public double TimelinessMarginFactor { get; private set; }
     }
 }

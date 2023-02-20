@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
+using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.Services.AzureDevopsService;
@@ -24,17 +25,20 @@ namespace SkripsiAppBackend.Controllers
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
         private readonly TeamUseCases teamUseCases;
+        private readonly Configuration configuration;
 
         public TeamsController(
             IAzureDevopsService azureDevopsService, 
             Database database,
             IAuthorizationService authorizationService,
-            TeamUseCases teamUseCases)
+            TeamUseCases teamUseCases,
+            Configuration configuration)
         {
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
             this.teamUseCases = teamUseCases;
+            this.configuration = configuration;
         }
 
         public struct Team
@@ -113,12 +117,33 @@ namespace SkripsiAppBackend.Controllers
                 .ToList();
         }
 
+        public struct UserFacingError
+        {
+            public string ErrorCode { get; set; }
+
+            public static UserFacingError? FromException(UserFacingException? exception)
+            {
+                if (exception == null)
+                {
+                    return null;
+                }
+
+                return new UserFacingError()
+                {
+                    ErrorCode = exception.ErrorCode.ToString()
+                };
+            }
+        }
+
         public struct TeamDetails
         {
             public Team Team { get; set; }
-            public double AverageVelocity { get; set; }
-            public int EstimatedRemainingWorkingDays { get; set; }
-            public DateTime EstimatedEndDate { get; set; }
+            public double? AverageVelocity { get; set; }
+            public int? EstimatedRemainingWorkingDays { get; set; }
+            public int? DifferenceInDaysBetweenDeadlineAndEstimate { get; set; }
+            public DateTime? EstimatedEndDate { get; set; }
+            public double? TimelinessScore { get; set; }
+            public UserFacingError? TimelinessScoreError { get; set; }
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
@@ -135,22 +160,64 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var latestSprints = GetLatestSprints();
+            var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+
+            var latestSprints = GetLatestSprints(sprints);
             var backlogItems = azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
             var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
 
             await Task.WhenAll(latestSprints, backlogItems, workDays);
 
-            var velocity = teamUseCases.CalculateAverageVelocity(latestSprints.Result);
-            var remainingWorkingDays = teamUseCases.CalculateRemainingWorkingDays(velocity, backlogItems.Result);
-            var endDate = teamUseCases.GetEstimatedEndDate(DateTime.Now, remainingWorkingDays, workDays.Result);
+            double? timelinessScore = null;
+            double? velocity = null;
+            int? remainingWorkingDays = null;
+            int? differenceInDaysBetweenDeadlineAndEstimate = null;
+            DateTime? endDate = null;
+            UserFacingException? timelinessScoreException = null;
+
+            // TODO: Should probably create some sort of processing pipeline?
+            // This try-catch nesting looks bad.
+            try
+            {
+                velocity = teamUseCases.CalculateAverageVelocity(latestSprints.Result);
+                remainingWorkingDays = teamUseCases.CalculateRemainingWorkingDays((double)velocity, backlogItems.Result);
+                endDate = teamUseCases.GetEstimatedEndDate(DateTime.Now, (int)remainingWorkingDays, workDays.Result);
+
+                try
+                {
+                    var startDate = teamUseCases.GetStartDate(sprints);
+
+                    differenceInDaysBetweenDeadlineAndEstimate = teamUseCases.CalculateDifferenceInDaysBetweenDeadlineAndEstimate(
+                        trackedTeam.Deadline,
+                        (DateTime)endDate
+                    );
+
+                    timelinessScore = teamUseCases.CalculateTimelinessScore(
+                        startDate,
+                        trackedTeam.Deadline,
+                        (DateTime)endDate,
+                        configuration.TimelinessMarginFactor
+                    );
+                }
+                catch (UserFacingException exception)
+                {
+                    timelinessScoreException = exception;
+                }
+            }
+            catch(UserFacingException exception)
+            {
+                timelinessScoreException = exception;
+            }
 
             return new TeamDetails()
             {
                 Team = await GetTeam(),
                 AverageVelocity = velocity,
                 EstimatedRemainingWorkingDays = remainingWorkingDays,
-                EstimatedEndDate = endDate
+                DifferenceInDaysBetweenDeadlineAndEstimate = differenceInDaysBetweenDeadlineAndEstimate,
+                EstimatedEndDate = endDate,
+                TimelinessScore = timelinessScore,
+                TimelinessScoreError = UserFacingError.FromException(timelinessScoreException)
             };
 
             async Task<Team> GetTeam()
@@ -176,10 +243,8 @@ namespace SkripsiAppBackend.Controllers
                 };
             }
 
-            async Task<List<TeamUseCases.SprintWorkItems>> GetLatestSprints(int count = 3)
+            async Task<List<TeamUseCases.SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
             {
-                var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
-
                 var latestCompletedSprints = sprints
                     .FindAll(sprint => 
                         sprint.TimeFrame == IAzureDevopsService.SprintTimeFrame.Current ||

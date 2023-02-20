@@ -47,7 +47,7 @@ const GeneralSection = ({ team }) => {
       <div>
         <span className='mr-4'>Team project deadline</span>
         <input type='date' className='rounded-md border-2 text-black px-2 py-1 border-secondary-dark bg-purple-100 w-48'
-          value={team.deadline.toISODate()}
+          value={team.deadline?.toISODate()}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
             projectId: team.project.id,

@@ -21,7 +21,8 @@ var applicationConfiguration = new Configuration(
     clientAppSecret: Environment.GetEnvironmentVariable("OAUTH_CLIENT_APP_SECRET"),
     environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
     connectionString: Environment.GetEnvironmentVariable("CONNECTION_STRING"),
-    accessTokenLifetime: TimeSpan.FromSeconds(3)
+    accessTokenLifetime: TimeSpan.FromSeconds(3),
+    timelinessMarginFactor: 0.5
 );
 
 // Add services to the container.

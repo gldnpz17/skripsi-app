@@ -1,4 +1,5 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using SkripsiAppBackend.Common.Exceptions;
+using System.Reflection.Metadata.Ecma335;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.UseCases
@@ -34,8 +35,23 @@ namespace SkripsiAppBackend.UseCases
             return Convert.ToInt32(Math.Ceiling(remainingEffort / averageVelocity));
         }
 
+        public int CalculateDifferenceInDaysBetweenDeadlineAndEstimate(DateTime? deadline, DateTime estimatedEndDate)
+        {
+            if (!deadline.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            };
+
+            return Convert.ToInt32(Math.Ceiling(((DateTime)deadline - estimatedEndDate).TotalDays));
+        }
+
         public double CalculateAverageVelocity(List<SprintWorkItems> sprintWorkItems)
         {
+            if (sprintWorkItems.Count == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
             double totalDays = 0;
             double totalEffort = 0;
             foreach (var sprintWorkItem in sprintWorkItems)
@@ -53,6 +69,39 @@ namespace SkripsiAppBackend.UseCases
             double totalEffort = CalculateTotalEffort(workItems);
 
             return totalEffort / days;
+        }
+
+        public DateTime GetStartDate(List<Sprint> sprints)
+        {
+            if (sprints.Count == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
+            var earliestSprint = sprints
+                .FindAll(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
+                .OrderBy(sprint => sprint.StartDate)
+                .FirstOrDefault();
+
+            return (DateTime)earliestSprint.StartDate;
+        }
+
+        public double? CalculateTimelinessScore(DateTime startDate, DateTime? deadline, DateTime estimatedEndDate, double marginFactor)
+        {
+            if (!deadline.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            };
+
+            var totalDurationInDays = Math.Ceiling(((DateTime)deadline - startDate).TotalDays);
+
+            var remainingDurationInDays = Math.Ceiling(((DateTime)deadline - estimatedEndDate).TotalDays);
+
+            var marginInDays = totalDurationInDays * marginFactor;
+
+            var score = Math.Clamp(remainingDurationInDays / marginInDays, -1, 1);
+
+            return score;
         }
 
         private static double CalculateTotalEffort(List<WorkItem> workItems)

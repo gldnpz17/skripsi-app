@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew, PlusCircle, Speedometer } from "../common/icons"
+import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew, PlusCircle, Speedometer, Warning } from "../common/icons"
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
@@ -11,11 +11,17 @@ import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
 
+const ExternalLinkWrapper = ({ to, children, ...props }) => {
+  const isAbsolute = /https:\/\//g.test(to)
+
+  return isAbsolute ? <a href={to} {...props}>{children}</a> : <Link {...{ to, ...props }}>{children}</Link>
+}
+
 const ExternalLink = ({ className, children, to }) => (
-  <Link {...{ to }} className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
+  <ExternalLinkWrapper {...{ to }} target='_blank' className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
     <span>{children}</span>
     <OpenInNew className='h-4' />
-  </Link>
+  </ExternalLinkWrapper>
 )  
 
 const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
@@ -68,8 +74,7 @@ const HealthComponentStatus = ({ title, statusText, severity, children }) => {
       return 'text-white'
     }
 
-    const color = ['green', 'orange', 'red'][severity]
-    return `text-${color}-300`
+    return `text-${Format.statusColor(severity)}`
   }, [severity])
 
   return (
@@ -194,18 +199,42 @@ const HealthComponentInformation = ({ title, Icon, content }) => (
   </div>
 )
 
+const HealthComponentError = ({ reason, helpLink, helpText }) => (
+  <div>
+    <div className='text-orange-300 flex gap-1 items-center'>
+      <Warning className='h-4' />
+      {reason}
+    </div>
+    <ExternalLink
+      to={helpLink}
+    >
+      {helpText}
+    </ExternalLink>
+  </div>
+)
+
 const TeamDetailsSection = ({ selectedTeam }) => {
   const organizationName = selectedTeam.organization.name
   const projectId = selectedTeam.project.id
+  const projectName = selectedTeam.project.name
   const teamId = selectedTeam.id
 
   const {
-    data: teamData,
+    data: {
+      timelinessScore,
+      differenceInDaysBetweenDeadlineAndEstimate,
+      estimatedEndDate,
+      timelinessScoreError
+    } = {},
     isLoading: teamsLoading
   } = useQuery(
     ['teams', organizationName, projectId, teamId],
     async () => await readTeamDetails({ organizationName, projectId, teamId })
   )
+
+  const [timelinessStatusText, timelinessStatusValue] = Format.timeliness(timelinessScore)
+
+  if (teamsLoading) return <></>
   
   return (
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
@@ -231,22 +260,30 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Timeliness"
-          statusText="No Value"
-          severity={undefined}
+          statusText={timelinessStatusText}
+          severity={timelinessStatusValue}
         >
-          {/* <HealthComponentInformation
-            Icon={CalendarCheck}
-            title='Estimated Completion Date'
-            content='5 Jan 2023 (5 days ahead)'
-          /> */}
-          <div>
-            <div>Team deadline not set</div>
-            <ExternalLink
-              to={`/teams/${organizationName}/${projectId}/${teamId}`}
-            >
-              Set deadline
-            </ExternalLink>
-          </div>
+          {(estimatedEndDate && differenceInDaysBetweenDeadlineAndEstimate) && (
+            <HealthComponentInformation
+              Icon={CalendarCheck}
+              title='Estimated Completion Date'
+              content={`${estimatedEndDate.toFormat('dd MMM yyyy')} (${Format.relativeTime(differenceInDaysBetweenDeadlineAndEstimate, 'day')})`}
+            />
+          )}
+          {timelinessScoreError?.errorCode == 'TEAM_NO_DEADLINE' && (
+            <HealthComponentError
+              reason='Deadline not set'
+              helpText='Set deadline'
+              helpLink={`/teams/${organizationName}/${projectId}/${teamId}`}
+            />
+          )}
+          {timelinessScoreError?.errorCode == 'TEAM_NO_SPRINTS' && (
+            <HealthComponentError
+              reason='No sprints'
+              helpText='Add sprint'
+              helpLink={`https://dev.azure.com/${organizationName}/${encodeURI(projectName)}`}
+            />
+          )}
         </HealthComponentStatus>
       </div>
       <div className='col-span-4'>

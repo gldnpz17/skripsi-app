@@ -5,10 +5,12 @@ const mapTeamDetails = ({
   team: {
     deadline,
     ...team
-  }, 
+  },
+  estimatedEndDate,
   ...details 
 }) => ({
   ...details,
+  estimatedEndDate: estimatedEndDate ? DateTime.fromISO(estimatedEndDate) : null,
   team: {
     ...team,
     deadline: deadline ? DateTime.fromISO(deadline) : null
