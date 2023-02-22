@@ -36,7 +36,7 @@ const Ping = () => (
 const BlankReportItem = ({ date }) => (
   <ReportItemContainer>
     <span className='mr-2'>{Format.month(date)}</span>
-    <ReportStatus status='noData' />
+    <ReportStatus status='NoData' />
     <span className='flex-grow' />
     <Ping />
   </ReportItemContainer>

@@ -1,15 +1,259 @@
-﻿using SkripsiAppBackend.Common.Exceptions;
+﻿using SkripsiAppBackend.Common;
+using SkripsiAppBackend.Common.Exceptions;
+using SkripsiAppBackend.Persistence;
+using SkripsiAppBackend.Services.AzureDevopsService;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.CompilerServices;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.UseCases
 {
     public class TeamUseCases
     {
+        private readonly IAzureDevopsService azureDevopsService;
+        private readonly Configuration configuration;
+        private readonly Database database;
+
+        public TeamUseCases(
+            IAzureDevopsService azureDevopsService, 
+            Configuration configuration, 
+            Database database)
+        {
+            this.azureDevopsService = azureDevopsService;
+            this.configuration = configuration;
+            this.database = database;
+        }
+
         public struct SprintWorkItems
         {
             public Sprint Sprint { get; set; }
             public List<WorkItem> WorkItems { get; set; }
+        }
+
+        public enum Severity
+        {
+            Healthy,
+            AtRisk,
+            Critical
+        }
+
+        public struct TimelinessMetric
+        {
+            public double? Score { get; set; }
+            public string? Severity { get; set; }
+            public DateTime? EstimatedCompletionDate { get; set; }
+            public int? TargetDateErrorInDays { get; set; }
+            public string? ErrorCode { get; set; }
+        }
+
+        public async Task<TimelinessMetric> CalculateTimelinessMetricAsync(string organizationName, string projectId, string teamId)
+        {
+            double? score = null;
+            Severity? severity = null;
+            DateTime? estimatedCompletionDate = null;
+            int? targetDateErrorInDays = null;
+            string? errorCode = null;
+
+            try
+            {
+                var backlogWorkItems = await azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
+                var teamSprints = await GetSprintWorkItemsAsync(organizationName, projectId, teamId);
+
+                var completedWorkItems = teamSprints
+                    .SelectMany(sprintWorkItems => sprintWorkItems.WorkItems)
+                    .Where(workItem => workItem.State == WorkItemState.Done);
+                var incompleteWorkItems = teamSprints
+                    .SelectMany(sprintWorkItem => sprintWorkItem.WorkItems)
+                    .Where(workItem => workItem.State != WorkItemState.Done);
+
+                var teamWorkDays = await azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
+                var deadline = (await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId)).Deadline;
+                var marginFactor = configuration.TimelinessMarginFactor;
+
+                var startDate = CalculateStartDate(teamSprints);
+                var velocity = CalculateVelocity(teamSprints, teamWorkDays, 3);
+                var totalEffort = CalculateTotalEffort(backlogWorkItems.Concat(incompleteWorkItems).Concat(completedWorkItems).ToList());
+                var estimatedTotalWorkingDays = CalculateEstimatedTotalWorkingDays(velocity, totalEffort);
+                var targetTotalWorkingDays = WorkingDaysBetween((DateTime)startDate, (DateTime)deadline, teamWorkDays);
+
+                var targetErrorWorkingDays = CalculateTargetErrorWorkingDays(estimatedTotalWorkingDays, targetTotalWorkingDays);
+                estimatedCompletionDate = AddWorkingDays((DateTime)startDate, estimatedTotalWorkingDays, teamWorkDays);
+                score = CalculateTimelinessScore(targetTotalWorkingDays, marginFactor, targetErrorWorkingDays);
+                severity = CalculateTimelinessSeverity((double)score);
+                targetDateErrorInDays = Convert.ToInt32(Math.Ceiling(targetErrorWorkingDays));
+            }
+            catch (UserFacingException exception)
+            {
+                errorCode = exception.ErrorCode.ToString();
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                errorCode = UserFacingException.ErrorCodes.UNKNOWN_ERROR.ToString();
+            }
+
+            return new TimelinessMetric()
+            {
+                Score = score,
+                Severity = severity.ToString(),
+                EstimatedCompletionDate = estimatedCompletionDate,
+                TargetDateErrorInDays = targetDateErrorInDays,
+                ErrorCode = errorCode
+            };
+        }
+
+        private DateTime CalculateStartDate(List<SprintWorkItems> sprintWorkItems)
+        {
+            var validSprints = sprintWorkItems.Where(sprint => sprint.Sprint.StartDate.HasValue);
+
+            if (validSprints.Count() == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
+            var startDate = validSprints
+                    .OrderBy(sprint => sprint.Sprint.StartDate)
+                    .First()
+                    .Sprint.StartDate;
+
+            return (DateTime)startDate;
+        }
+
+        private double CalculateTimelinessScore(double targetTotalWorkingDays, double marginFactor, double targetErrorWorkingDays)
+        {
+            var marginDays = targetTotalWorkingDays * marginFactor;
+            var rawScore = targetErrorWorkingDays / marginDays;
+
+            return Math.Clamp(rawScore, -1, 1);
+        }
+
+        private Severity CalculateTimelinessSeverity(double score)
+        {
+            if (score < -1 || score > 1)
+            {
+                throw new ArgumentException("Invalid score range.");
+            }
+
+            if (score < 0)
+            {
+                return Severity.Critical;
+            }
+            else if (score >= 0 && score <= 0.1)
+            {
+                return Severity.AtRisk;
+            }
+            else
+            {
+                return Severity.Healthy;
+            }
+        }
+
+        private double CalculateVelocity(List<SprintWorkItems> sprintWorkItems, List<DayOfWeek> workDays, int windowSize)
+        {
+            var windowSprintWorkItems = sprintWorkItems
+                .Where(sprintWorkItem =>
+                    sprintWorkItem.Sprint.TimeFrame == SprintTimeFrame.Current ||
+                    sprintWorkItem.Sprint.TimeFrame == SprintTimeFrame.Past)
+                .OrderBy(sprintWorkItem => sprintWorkItem.Sprint.EndDate)
+                .Take(windowSize)
+                .ToList();
+
+            if (windowSprintWorkItems.Count == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
+            var completedWorkItems = windowSprintWorkItems.SelectMany(sprintWorkItem => sprintWorkItem.WorkItems).ToList();
+
+            var totalEffort = CalculateTotalEffort(completedWorkItems);
+            double totalWorkingDays = 0;
+            foreach (var sprintWorkItem in windowSprintWorkItems)
+            {
+                var startDate = sprintWorkItem.Sprint.StartDate;
+                var endDate = sprintWorkItem.Sprint.EndDate;
+
+                if (!startDate.HasValue || !endDate.HasValue)
+                {
+                    throw new UserFacingException(UserFacingException.ErrorCodes.SPRINT_INVALID_DATE);
+                }
+
+                totalWorkingDays += WorkingDaysBetween((DateTime)startDate, (DateTime)endDate, workDays);
+            }
+
+            return totalEffort / totalWorkingDays;
+        }
+
+        private async Task<List<SprintWorkItems>> GetSprintWorkItemsAsync(string organizationName, string projectId, string teamId)
+        {
+            var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+            
+            var sprintWorkItems = new List<SprintWorkItems>();
+            var fetchTasks = sprints.Select(async (sprint) =>
+            {
+                var workItems = await azureDevopsService.ReadSprintWorkItems(
+                    organizationName,
+                    projectId,
+                    teamId,
+                    sprint.Id);
+
+                sprintWorkItems.Add(new SprintWorkItems()
+                {
+                    Sprint = sprint,
+                    WorkItems = workItems
+                });
+            });
+
+            await Task.WhenAll(fetchTasks);
+
+            return sprintWorkItems;
+        }
+
+        private double CalculateEstimatedTotalWorkingDays(double velocity, double totalEffort)
+        {
+            return totalEffort / velocity;
+        }
+
+        private double WorkingDaysBetween(DateTime startDate, DateTime endDate, List<DayOfWeek> workDays)
+        {
+            var currentDate = new DateTime(startDate.Ticks);
+            double workingDays = 0;
+            
+            while (currentDate < endDate)
+            {
+                if (workDays.Contains(currentDate.DayOfWeek))
+                {
+                    workingDays += 1;
+                }
+
+                currentDate = currentDate.AddDays(1);
+            }
+
+            return workingDays;
+        }
+
+        private double CalculateTargetErrorWorkingDays(double targetTotalWorkingDays, double estimatedTotalWorkingDays)
+        {
+            return estimatedTotalWorkingDays - targetTotalWorkingDays;
+        }
+
+        private DateTime AddWorkingDays(DateTime startDate, double workingDays, List<DayOfWeek> workDays)
+        {
+            var endDate = new DateTime(startDate.Ticks);
+
+            // If there's still a full day and today's not a holiday.
+            while (workingDays >= 1 && !workDays.Contains(endDate.DayOfWeek))
+            {
+                endDate = endDate.AddDays(1);
+                if (workDays.Contains(endDate.DayOfWeek))
+                {
+                    workingDays--;
+                }
+            }
+
+            // Add the remainder of the day.
+            endDate = endDate.AddDays(workingDays);
+
+            return endDate;
         }
 
         public DateTime GetEstimatedEndDate(DateTime startDate, int remainingWorkingDays, List<DayOfWeek> workDays)
@@ -28,101 +272,11 @@ namespace SkripsiAppBackend.UseCases
             return endDate;
         }
 
-        public int CalculateRemainingWorkingDays(double averageVelocity, List<WorkItem> unfinishedWorkItems)
-        {
-            double remainingEffort = CalculateTotalEffort(unfinishedWorkItems);
-
-            return Convert.ToInt32(Math.Ceiling(remainingEffort / averageVelocity));
-        }
-
-        public int CalculateDifferenceInDaysBetweenDeadlineAndEstimate(DateTime? deadline, DateTime estimatedEndDate)
-        {
-            if (!deadline.HasValue)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
-            };
-
-            return Convert.ToInt32(Math.Ceiling(((DateTime)deadline - estimatedEndDate).TotalDays));
-        }
-
-        public double CalculateAverageVelocity(List<SprintWorkItems> sprintWorkItems)
-        {
-            if (sprintWorkItems.Count == 0)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
-            }
-
-            double totalDays = 0;
-            double totalEffort = 0;
-            foreach (var sprintWorkItem in sprintWorkItems)
-            {
-                totalDays += GetSprintDurationInDays(sprintWorkItem.Sprint);
-                totalEffort += CalculateTotalEffort(sprintWorkItem.WorkItems);
-            }
-
-            return totalEffort / totalDays;
-        }
-
-        public double CalculateVelocity(Sprint sprint, List<WorkItem> workItems)
-        {
-            double days = GetSprintDurationInDays(sprint);
-            double totalEffort = CalculateTotalEffort(workItems);
-
-            return totalEffort / days;
-        }
-
-        public DateTime GetStartDate(List<Sprint> sprints)
-        {
-            if (sprints.Count == 0)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
-            }
-
-            var earliestSprint = sprints
-                .FindAll(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
-                .OrderBy(sprint => sprint.StartDate)
-                .FirstOrDefault();
-
-            return (DateTime)earliestSprint.StartDate;
-        }
-
-        public double? CalculateTimelinessScore(DateTime startDate, DateTime? deadline, DateTime estimatedEndDate, double marginFactor)
-        {
-            if (!deadline.HasValue)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
-            };
-
-            var totalDurationInDays = Math.Ceiling(((DateTime)deadline - startDate).TotalDays);
-
-            var remainingDurationInDays = Math.Ceiling(((DateTime)deadline - estimatedEndDate).TotalDays);
-
-            var marginInDays = totalDurationInDays * marginFactor;
-
-            var score = Math.Clamp(remainingDurationInDays / marginInDays, -1, 1);
-
-            return score;
-        }
-
-        private static double CalculateTotalEffort(List<WorkItem> workItems)
+        public double CalculateTotalEffort(List<WorkItem> workItems)
         {
             double totalEffort = 0;
-            foreach (var workItem in workItems)
-            {
-                totalEffort += workItem.Effort;
-            }
-
+            workItems.ForEach(workItem => totalEffort += workItem.Effort);
             return totalEffort;
-        }
-
-        private static double GetSprintDurationInDays(Sprint sprint)
-        {
-            if (sprint.StartDate == null || sprint.EndDate == null)
-            {
-                throw new ArgumentException("Invalid sprint start or end date.");
-            }
-
-            return ((DateTime)sprint.EndDate - (DateTime)sprint.StartDate).TotalDays;
         }
     }
 }

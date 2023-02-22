@@ -6,11 +6,17 @@ const mapTeamDetails = ({
     deadline,
     ...team
   },
-  estimatedEndDate,
+  timelinessMetric: {
+    estimatedCompletionDate,
+    ...timelinessMetric
+  },
   ...details 
 }) => ({
   ...details,
-  estimatedEndDate: estimatedEndDate ? DateTime.fromISO(estimatedEndDate) : null,
+  timelinessMetric: {
+    ...timelinessMetric,
+    estimatedCompletionDate: estimatedCompletionDate ? DateTime.fromISO(estimatedCompletionDate) : null
+  },
   team: {
     ...team,
     deadline: deadline ? DateTime.fromISO(deadline) : null

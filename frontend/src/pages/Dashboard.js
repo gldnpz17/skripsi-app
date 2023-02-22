@@ -32,8 +32,8 @@ const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
         <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
           {name}
         </span>
-        <span className={`${Format.statusColor('healthy', 'text-')}`}>
-          {Format.status('healthy')}
+        <span className={`${Format.statusColor('Healthy', 'text-')}`}>
+          {Format.status('Healthy')}
         </span>
       </span>
     </div>
@@ -68,7 +68,7 @@ const TeamsListSection = ({ setSelectedTeam }) => {
   )
 }
 
-const HealthComponentStatus = ({ title, statusText, severity, children }) => {
+const HealthComponentStatus = ({ title, severity, children }) => {
   const textColor = useMemo(() => {
     if (severity === undefined) {
       return 'text-white'
@@ -81,7 +81,7 @@ const HealthComponentStatus = ({ title, statusText, severity, children }) => {
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
       <div className='text-gray-400 text-sm font-bold mb-1'>{title}</div>
       <div className={`${textColor} text-xl`}>
-        {statusText}
+        {Format.severity(severity)}
       </div>
       {children && (
         <hr className='my-3 border-gray-700' />
@@ -164,12 +164,12 @@ const HealthLineChart = () => (
 )
 
 const REPORTS = [
-  { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'critical' },
-  { date: new Date(), velocity: 23, expenditureRate: 3100000, status: 'atRisk' },
-  { date: new Date(), velocity: 12, expenditureRate: 3500000, status: 'critical' },
-  { date: new Date(), velocity: 36, expenditureRate: 3600000, status: 'critical' },
-  { date: new Date(), velocity: 38, expenditureRate: 3700000, status: 'atRisk' },
-  { date: new Date(), velocity: 45, expenditureRate: 3200000, status: 'healthy' }
+  { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'Critical' },
+  { date: new Date(), velocity: 23, expenditureRate: 3100000, status: 'AtRisk' },
+  { date: new Date(), velocity: 12, expenditureRate: 3500000, status: 'Critical' },
+  { date: new Date(), velocity: 36, expenditureRate: 3600000, status: 'Critical' },
+  { date: new Date(), velocity: 38, expenditureRate: 3700000, status: 'AtRisk' },
+  { date: new Date(), velocity: 45, expenditureRate: 3200000, status: 'Healthy' }
 ]
 
 const ReportsList = ({ reports }) => (
@@ -221,18 +221,18 @@ const TeamDetailsSection = ({ selectedTeam }) => {
 
   const {
     data: {
-      timelinessScore,
-      differenceInDaysBetweenDeadlineAndEstimate,
-      estimatedEndDate,
-      timelinessScoreError
-    } = {},
+      timelinessMetric: {
+        errorCode,
+        estimatedCompletionDate,
+        severity,
+        targetDateErrorInDays
+      }
+    } = { timelinessMetric: { } },
     isLoading: teamsLoading
   } = useQuery(
     ['teams', organizationName, projectId, teamId],
     async () => await readTeamDetails({ organizationName, projectId, teamId })
   )
-
-  const [timelinessStatusText, timelinessStatusValue] = Format.timeliness(timelinessScore)
 
   if (teamsLoading) return <></>
   
@@ -260,24 +260,23 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Timeliness"
-          statusText={timelinessStatusText}
-          severity={timelinessStatusValue}
+          severity={severity}
         >
-          {(estimatedEndDate && differenceInDaysBetweenDeadlineAndEstimate) && (
+          {(estimatedCompletionDate && targetDateErrorInDays) && (
             <HealthComponentInformation
               Icon={CalendarCheck}
               title='Estimated Completion Date'
-              content={`${estimatedEndDate.toFormat('dd MMM yyyy')} (${Format.relativeTime(differenceInDaysBetweenDeadlineAndEstimate, 'day')})`}
+              content={`${estimatedCompletionDate.toFormat('dd MMM yyyy')} (${Format.relativeTime(targetDateErrorInDays, 'day')})`}
             />
           )}
-          {timelinessScoreError?.errorCode == 'TEAM_NO_DEADLINE' && (
+          {errorCode == 'TEAM_NO_DEADLINE' && (
             <HealthComponentError
               reason='Deadline not set'
               helpText='Set deadline'
               helpLink={`/teams/${organizationName}/${projectId}/${teamId}`}
             />
           )}
-          {timelinessScoreError?.errorCode == 'TEAM_NO_SPRINTS' && (
+          {errorCode == 'TEAM_NO_SPRINTS' && (
             <HealthComponentError
               reason='No sprints'
               helpText='Add sprint'
@@ -289,8 +288,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Feature Completeness"
-          statusText="Complete"
-          severity={0}
+          severity='Healthy'
         >
           <HealthComponentInformation
             Icon={CheckeredFlag}
@@ -302,8 +300,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Budget"
-          statusText="Over Budget"
-          severity={0}
+          severity='Healthy'
         >
           <HealthComponentInformation
             Icon={CashStack}

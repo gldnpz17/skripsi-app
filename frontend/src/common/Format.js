@@ -7,10 +7,10 @@ const Format = {
   },
   status: (status) => {
     const dict = {
-      'healthy': 'Healthy',
-      'atRisk': 'At Risk',
-      'critical': 'Critical',
-      'noData': 'No Data'
+      'Healthy': 'Healthy',
+      'AtRisk': 'At Risk',
+      'Critical': 'Critical',
+      'NoData': 'No Data'
     }
 
     return dict[status]
@@ -18,29 +18,16 @@ const Format = {
   statusColor: (status, prefix = '') => {
     // Make sure to add the relevant classes to the safelist in the tailwind config file.
     const dict = {
-      'healthy': 'green-300',
-      'atRisk': 'yellow-300',
-      'critical': 'red-300',
-      'noData': 'gray-300'
+      'Healthy': 'green-300',
+      'AtRisk': 'yellow-300',
+      'Critical': 'red-300',
+      'NoData': 'gray-300'
     }
 
     return prefix + dict[status]
   },
   month: (date) => {
     return Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date)
-  },
-  metricSeverity: (score) => {
-    if (typeof(score) != 'number') return undefined
-
-    if (score >= -1 && score < -0.5) {
-      return 
-    } else if (score >= -0.5 && score < 0) {
-      return 
-    } else if (score >= 0 && score <= 1) {
-      return 
-    } else {
-      return undefined
-    }
   },
   relativeTime: (time, unit) => {
     let timePosition = null
@@ -56,18 +43,14 @@ const Format = {
       return 'right on time'
     }
   },
-  timeliness: (score) => {
-    if (typeof(score) != 'number') return ['Can\'t Calculate', undefined]
-
-    if (score >= -1 && score < 0) {
-      return ['Likely Late', 'critical']
-    } else if (score >= 0 && score < 0.1) {
-      return ['On Time', 'atRisk']
-    } else if (score >= 0.1 && score <= 1) {
-      return ['Ahead of Time', 'healthy']
-    } else {
-      return ['Can\'t Calculate', undefined]
+  severity: (severity) => {
+    const severityHints = {
+      'Healthy': 'On Time',
+      'AtRisk': 'At Risk',
+      'Critical': 'Critical'
     }
+
+    return severityHints[severity] ?? 'Can\'t Calculate'
   }
 }
 

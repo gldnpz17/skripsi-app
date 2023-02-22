@@ -138,86 +138,27 @@ namespace SkripsiAppBackend.Controllers
         public struct TeamDetails
         {
             public Team Team { get; set; }
-            public double? AverageVelocity { get; set; }
-            public int? EstimatedRemainingWorkingDays { get; set; }
-            public int? DifferenceInDaysBetweenDeadlineAndEstimate { get; set; }
-            public DateTime? EstimatedEndDate { get; set; }
-            public double? TimelinessScore { get; set; }
-            public UserFacingError? TimelinessScoreError { get; set; }
+            public TeamUseCases.TimelinessMetric TimelinessMetric { get; set; }
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
         public async Task<ActionResult<TeamDetails>> ReadTeamDetailsById(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
-            [FromRoute] string teamId) 
+            [FromRoute] string teamId)
         {
             var trackedTeam = await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
 
             var authorizationResult = await authorizationService.AuthorizeAsync(User, trackedTeam, AuthorizationPolicies.AllowTeamMember);
-            if (!authorizationResult.Succeeded) 
+            if (!authorizationResult.Succeeded)
             {
                 return Unauthorized();
-            }
-
-            var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
-
-            var latestSprints = GetLatestSprints(sprints);
-            var backlogItems = azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
-            var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
-
-            await Task.WhenAll(latestSprints, backlogItems, workDays);
-
-            double? timelinessScore = null;
-            double? velocity = null;
-            int? remainingWorkingDays = null;
-            int? differenceInDaysBetweenDeadlineAndEstimate = null;
-            DateTime? endDate = null;
-            UserFacingException? timelinessScoreException = null;
-
-            // TODO: Should probably create some sort of processing pipeline?
-            // This try-catch nesting looks bad.
-            try
-            {
-                velocity = teamUseCases.CalculateAverageVelocity(latestSprints.Result);
-                remainingWorkingDays = teamUseCases.CalculateRemainingWorkingDays((double)velocity, backlogItems.Result);
-                endDate = teamUseCases.GetEstimatedEndDate(DateTime.Now, (int)remainingWorkingDays, workDays.Result);
-
-                try
-                {
-                    var startDate = teamUseCases.GetStartDate(sprints);
-
-                    differenceInDaysBetweenDeadlineAndEstimate = teamUseCases.CalculateDifferenceInDaysBetweenDeadlineAndEstimate(
-                        trackedTeam.Deadline,
-                        (DateTime)endDate
-                    );
-
-                    timelinessScore = teamUseCases.CalculateTimelinessScore(
-                        startDate,
-                        trackedTeam.Deadline,
-                        (DateTime)endDate,
-                        configuration.TimelinessMarginFactor
-                    );
-                }
-                catch (UserFacingException exception)
-                {
-                    timelinessScoreException = exception;
-                }
-            }
-            catch(UserFacingException exception)
-            {
-                timelinessScoreException = exception;
             }
 
             return new TeamDetails()
             {
                 Team = await GetTeam(),
-                AverageVelocity = velocity,
-                EstimatedRemainingWorkingDays = remainingWorkingDays,
-                DifferenceInDaysBetweenDeadlineAndEstimate = differenceInDaysBetweenDeadlineAndEstimate,
-                EstimatedEndDate = endDate,
-                TimelinessScore = timelinessScore,
-                TimelinessScoreError = UserFacingError.FromException(timelinessScoreException)
+                TimelinessMetric = await teamUseCases.CalculateTimelinessMetricAsync(organizationName, projectId, teamId)
             };
 
             async Task<Team> GetTeam()
