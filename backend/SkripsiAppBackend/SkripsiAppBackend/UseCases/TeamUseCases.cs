@@ -4,6 +4,7 @@ using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
+using static SkripsiAppBackend.Common.Exceptions.UserFacingException;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.UseCases
@@ -43,6 +44,14 @@ namespace SkripsiAppBackend.UseCases
             public string? Severity { get; set; }
             public DateTime? EstimatedCompletionDate { get; set; }
             public int? TargetDateErrorInDays { get; set; }
+            public string? ErrorCode { get; set; }
+        }
+
+        public struct FeatureMetric
+        {
+            public double? Score { get; set; }
+            public string? Severity { get; set; }
+            public double? EstimatedFeatureCompletion { get; set; }
             public string? ErrorCode { get; set; }
         }
 
@@ -100,6 +109,153 @@ namespace SkripsiAppBackend.UseCases
                 TargetDateErrorInDays = targetDateErrorInDays,
                 ErrorCode = errorCode
             };
+        }
+
+        public async Task<FeatureMetric> CalculateFeatureMetricAsync(string organizationName, string projectId, string teamId)
+        {
+            double? estimatedFeatureCompletion = null;
+            double? score = null;
+            Severity? severity = null;
+            string? errorCode = null;
+
+            try
+            {
+                var teamSprints = await GetSprintWorkItemsAsync(organizationName, projectId, teamId);
+                var backlogWorkItems = await azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
+                var teamWorkDays = await azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
+                var deadline = (await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId)).Deadline;
+
+                var remainingWorkItems = teamSprints
+                    .SelectMany(sprintWorkItem => sprintWorkItem.WorkItems)
+                    .Where(workItem => workItem.State != WorkItemState.Done)
+                    .Concat(backlogWorkItems)
+                    .ToList();
+                var completedWorkItems = teamSprints
+                    .SelectMany(sprintWorkItem => sprintWorkItem.WorkItems)
+                    .Where(workItem => workItem.State == WorkItemState.Done)
+                    .ToList();
+
+                var velocity = CalculateVelocity(teamSprints, teamWorkDays, 3);
+                var remainingWorkingDays = CalculateWorkingDaysBeforeDeadline((DateTime)deadline, teamWorkDays);
+
+                var estimatedTotalBusinessValue = CalculateEstimatedTotalBusinessValue(
+                    velocity,
+                    remainingWorkingDays,
+                    remainingWorkItems,
+                    completedWorkItems);
+                var targetTotalBusinessValue = CalculateTargetTotalBusinessValue(
+                    remainingWorkItems
+                        .Concat(completedWorkItems)
+                        .ToList());
+
+                estimatedFeatureCompletion = CalculateEstimatedFeatureCompletion(
+                    estimatedTotalBusinessValue,
+                    targetTotalBusinessValue);
+                score = CalculateFeatureScore((double)estimatedFeatureCompletion);
+                severity = CalculateFeatureSeverity((double)score);
+            }
+            catch (UserFacingException exception)
+            {
+                errorCode = exception.ErrorCode.ToString();
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                errorCode = UserFacingException.ErrorCodes.UNKNOWN_ERROR.ToString();
+            }
+
+            return new FeatureMetric()
+            {
+                Score = estimatedFeatureCompletion,
+                EstimatedFeatureCompletion = estimatedFeatureCompletion,
+                Severity = severity.ToString(),
+                ErrorCode = errorCode
+            };
+        }
+
+        private double CalculateFeatureScore(double estimatedFeatureCompletion)
+        {
+            return estimatedFeatureCompletion * 2 - 1;
+        }
+
+        private Severity CalculateFeatureSeverity(double score)
+        {
+            if (score < -1 || score > 1)
+            {
+                throw new ArgumentException("Invalid score range.");
+            }
+
+            if (score < 0)
+            {
+                return Severity.Critical;
+            }
+            else if (score >= 0 && score <= 0.5)
+            {
+                return Severity.AtRisk;
+            }
+            else
+            {
+                return Severity.Healthy;
+            }
+        }
+
+        private double CalculateWorkingDaysBeforeDeadline(DateTime deadline, List<DayOfWeek> workDays)
+        {
+            if (deadline == null)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            }
+
+            return WorkingDaysBetween(DateTime.Now, deadline, workDays);
+        }
+
+        private double CalculateEstimatedFeatureCompletion(double estimatedTotalBusinessValue, double targetTotalBusinessValue)
+        {
+            return estimatedTotalBusinessValue / targetTotalBusinessValue;
+        }
+
+        private double CalculateEstimatedTotalBusinessValue(
+            double velocity,
+            double remainingWorkingDays,
+            List<WorkItem> remainingWorkItems,
+            List<WorkItem> completedWorkItems)
+        {
+            var orderedWorkItems = remainingWorkItems.OrderBy(workItem => workItem.Priority);
+
+            var effortCapacity = velocity * remainingWorkingDays;
+
+            var completableWorkItems = new List<WorkItem>();
+
+            foreach (var workItem in orderedWorkItems)
+            {
+                if (effortCapacity - workItem.Effort < 0)
+                {
+                    break;
+                }
+
+                completableWorkItems.Add(workItem);
+            }
+
+            double estimatedTotalBusinessValue = 0;
+
+            foreach (var workItem in completedWorkItems.Concat(completableWorkItems))
+            {
+                estimatedTotalBusinessValue += workItem.BusinessValue;
+            }
+
+            return estimatedTotalBusinessValue;
+        }
+
+        private double CalculateTargetTotalBusinessValue(List<WorkItem> allWorkItems)
+        {
+            double totalBusinessValue = 0;
+            
+            foreach (var workItem in allWorkItems)
+            {
+                totalBusinessValue += workItem.BusinessValue;
+            }
+
+            return totalBusinessValue;
         }
 
         private DateTime CalculateStartDate(List<SprintWorkItems> sprintWorkItems)

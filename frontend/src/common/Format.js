@@ -13,7 +13,7 @@ const Format = {
       'NoData': 'No Data'
     }
 
-    return dict[status]
+    return dict[status] ?? 'Can\'t Calculate'
   },
   statusColor: (status, prefix = '') => {
     // Make sure to add the relevant classes to the safelist in the tailwind config file.
@@ -42,15 +42,6 @@ const Format = {
     } else {
       return 'right on time'
     }
-  },
-  severity: (severity) => {
-    const severityHints = {
-      'Healthy': 'On Time',
-      'AtRisk': 'At Risk',
-      'Critical': 'Critical'
-    }
-
-    return severityHints[severity] ?? 'Can\'t Calculate'
   }
 }
 

@@ -117,28 +117,11 @@ namespace SkripsiAppBackend.Controllers
                 .ToList();
         }
 
-        public struct UserFacingError
-        {
-            public string ErrorCode { get; set; }
-
-            public static UserFacingError? FromException(UserFacingException? exception)
-            {
-                if (exception == null)
-                {
-                    return null;
-                }
-
-                return new UserFacingError()
-                {
-                    ErrorCode = exception.ErrorCode.ToString()
-                };
-            }
-        }
-
         public struct TeamDetails
         {
             public Team Team { get; set; }
             public TeamUseCases.TimelinessMetric TimelinessMetric { get; set; }
+            public TeamUseCases.FeatureMetric FeatureMetric { get; set; }
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
@@ -158,7 +141,8 @@ namespace SkripsiAppBackend.Controllers
             return new TeamDetails()
             {
                 Team = await GetTeam(),
-                TimelinessMetric = await teamUseCases.CalculateTimelinessMetricAsync(organizationName, projectId, teamId)
+                TimelinessMetric = await teamUseCases.CalculateTimelinessMetricAsync(organizationName, projectId, teamId),
+                FeatureMetric = await teamUseCases.CalculateFeatureMetricAsync(organizationName, projectId, teamId),
             };
 
             async Task<Team> GetTeam()

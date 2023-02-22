@@ -213,6 +213,25 @@ const HealthComponentError = ({ reason, helpLink, helpText }) => (
   </div>
 )
 
+const HealthError = ({ errorCode, team }) => {
+  const errorProps = {
+    'TEAM_NO_DEADLINE': {
+      reason: 'Deadline not set',
+      helpText: 'Set deadline',
+      helpLink: `/teams/${team.organization.name}/${team.project.id}/${team.id}`
+    },
+    'TEAM_NO_SPRINTS': {
+      reason: 'No sprints',
+      helpText: 'Add sprint',
+      helpLink: `https://dev.azure.com/${team.organization.name}/${encodeURI(team.project.name)}`
+    }
+  }
+
+  return (
+    <HealthComponentError {...errorProps[errorCode]} />
+  )
+}
+
 const TeamDetailsSection = ({ selectedTeam }) => {
   const organizationName = selectedTeam.organization.name
   const projectId = selectedTeam.project.id
@@ -222,12 +241,20 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   const {
     data: {
       timelinessMetric: {
-        errorCode,
+        errorCode: timelinessErrorCode,
         estimatedCompletionDate,
-        severity,
+        severity: timelinessSeverity,
         targetDateErrorInDays
+      },
+      featureMetric: {
+        errorCode: featureErrorCode,
+        severity: featureSeverity,
+        estimatedFeatureCompletion
       }
-    } = { timelinessMetric: { } },
+    } = {
+      timelinessMetric: { },
+      featureMetric: { }
+    },
     isLoading: teamsLoading
   } = useQuery(
     ['teams', organizationName, projectId, teamId],
@@ -260,7 +287,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Timeliness"
-          severity={severity}
+          severity={timelinessSeverity}
         >
           {(estimatedCompletionDate && targetDateErrorInDays) && (
             <HealthComponentInformation
@@ -269,32 +296,26 @@ const TeamDetailsSection = ({ selectedTeam }) => {
               content={`${estimatedCompletionDate.toFormat('dd MMM yyyy')} (${Format.relativeTime(targetDateErrorInDays, 'day')})`}
             />
           )}
-          {errorCode == 'TEAM_NO_DEADLINE' && (
-            <HealthComponentError
-              reason='Deadline not set'
-              helpText='Set deadline'
-              helpLink={`/teams/${organizationName}/${projectId}/${teamId}`}
-            />
-          )}
-          {errorCode == 'TEAM_NO_SPRINTS' && (
-            <HealthComponentError
-              reason='No sprints'
-              helpText='Add sprint'
-              helpLink={`https://dev.azure.com/${organizationName}/${encodeURI(projectName)}`}
-            />
+          {timelinessErrorCode && (
+            <HealthError errorCode={timelinessErrorCode} team={selectedTeam} />
           )}
         </HealthComponentStatus>
       </div>
       <div className='col-span-4'>
         <HealthComponentStatus
           title="Feature Completeness"
-          severity='Healthy'
+          severity={featureSeverity}
         >
-          <HealthComponentInformation
-            Icon={CheckeredFlag}
-            title='Estimated Feature Completion'
-            content='100%'
-          />
+          {estimatedFeatureCompletion !== null && (
+            <HealthComponentInformation
+              Icon={CheckeredFlag}
+              title='Estimated Feature Completion'
+              content={`${estimatedFeatureCompletion * 100}%`}
+            />
+          )}
+          {featureErrorCode && (
+            <HealthError errorCode={featureErrorCode} team={selectedTeam} />
+          )}
         </HealthComponentStatus>
       </div>
       <div className='col-span-4'>
