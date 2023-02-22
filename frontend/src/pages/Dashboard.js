@@ -81,7 +81,7 @@ const HealthComponentStatus = ({ title, severity, children }) => {
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
       <div className='text-gray-400 text-sm font-bold mb-1'>{title}</div>
       <div className={`${textColor} text-xl`}>
-        {Format.severity(severity)}
+        {Format.status(severity)}
       </div>
       {children && (
         <hr className='my-3 border-gray-700' />
