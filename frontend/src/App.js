@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { TrackNewTeamPage } from './pages/TrackNewTeamProject';
 import { TeamDetailsPage } from './pages/TeamDetails';
 import { TeamsListPage } from './pages/TeamsList';
+import { NewReportPage } from './pages/NewReport';
 
 const queryClient = new QueryClient()
 
@@ -24,6 +25,7 @@ function App() {
             <Route path='track-new' element={<TrackNewTeamPage />} />
             <Route path='/teams' element={<TeamsListPage />} />
             <Route path='teams/:organizationName/:projectId/:teamId' element={<TeamDetailsPage />} />
+            <Route path='teams/:organizationName/:projectId/:teamId/reports/create' element={<NewReportPage />} />
           </Route>
           <Route path='login' element={<LoginPage />} />
           <Route path='oauth-success' element={<OAuthSuccessPage />} />

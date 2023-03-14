@@ -14,7 +14,8 @@
             UNKNOWN_ERROR,
             SPRINT_INVALID_DATE,
             TEAM_NO_SPRINTS,
-            TEAM_NO_DEADLINE
+            TEAM_NO_DEADLINE,
+            TEAM_NO_WORK_ITEMS
         }
     }
 }

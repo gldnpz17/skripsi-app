@@ -13,12 +13,14 @@ namespace SkripsiAppBackend.Persistence
         private readonly int version;
 
         public TrackedTeamsRepository TrackedTeams { get; private set; }
+        public ReportsRepository Reports { get; private set; }
 
         public Database(string connectionString, int version = 100)
         {
             this.connectionString = connectionString;
             this.version = version;
             TrackedTeams = new TrackedTeamsRepository(connectionString);
+            Reports = new ReportsRepository(connectionString);
         }
 
         public void Migrate()

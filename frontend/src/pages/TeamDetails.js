@@ -8,6 +8,7 @@ import { readTeamDetails, updateTeam } from "../api-requests/Teams"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { useCallback } from "react"
 import { DateTime } from "luxon"
+import { FormInput } from "../Components/Common/FormInput"
 
 const REPORTS = [
   { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'critical' },
@@ -44,18 +45,17 @@ const GeneralSection = ({ team }) => {
   return (
     <div className='mb-10'>
       <SectionTitle>General</SectionTitle>
-      <div>
-        <span className='mr-4'>Team project deadline</span>
-        <input type='date' className='rounded-md border-2 text-black px-2 py-1 border-secondary-dark bg-purple-100 w-48'
-          value={team.deadline?.toISODate()}
-          onChange={updateTeamAsync(({ target }) => ({
-            organizationName: team.organization.name,
-            projectId: team.project.id,
-            teamId: team.id,
-            deadline: DateTime.fromISO(target.value).endOf('day').toISO() 
-          }))}
-        />
-      </div>
+      <FormInput
+        label='Team project deadline'
+        type='date'
+        value={team.deadline?.toISODate()}
+        onChange={updateTeamAsync(({ target }) => ({
+          organizationName: team.organization.name,
+          projectId: team.project.id,
+          teamId: team.id,
+          deadline: DateTime.fromISO(target.value).endOf('day').toISO() 
+        }))}
+      />
     </div>
   )
 }

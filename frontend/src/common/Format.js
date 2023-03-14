@@ -42,7 +42,8 @@ const Format = {
     } else {
       return 'right on time'
     }
-  }
+  },
+  reportKey: ({ startDate, endDate }) => `${startDate.toISO()}_${endDate.toISO()}`
 }
 
 export { Format }

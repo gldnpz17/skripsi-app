@@ -37,6 +37,7 @@ builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddSingleton<AccessTokenService>();
 
 builder.Services.AddScoped<TeamUseCases>();
+builder.Services.AddScoped<ReportUseCases>();
 
 builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>)

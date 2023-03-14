@@ -10,6 +10,7 @@ import { readTeamDetails, readTrackedTeams, readUntrackedTeams } from "../api-re
 import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
+import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 
 const ExternalLinkWrapper = ({ to, children, ...props }) => {
   const isAbsolute = /https:\/\//g.test(to)
@@ -163,16 +164,7 @@ const HealthLineChart = () => (
   </div>
 )
 
-const REPORTS = [
-  { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'Critical' },
-  { date: new Date(), velocity: 23, expenditureRate: 3100000, status: 'AtRisk' },
-  { date: new Date(), velocity: 12, expenditureRate: 3500000, status: 'Critical' },
-  { date: new Date(), velocity: 36, expenditureRate: 3600000, status: 'Critical' },
-  { date: new Date(), velocity: 38, expenditureRate: 3700000, status: 'AtRisk' },
-  { date: new Date(), velocity: 45, expenditureRate: 3200000, status: 'Healthy' }
-]
-
-const ReportsList = ({ reports }) => (
+const ReportsList = ({ selectedTeam, availableReports, reports }) => (
   <div>
     <div className='flex text-sm items-center mb-4'>
       <span className='flex-grow font-bold text-gray-400'>Recent Reports</span>
@@ -181,7 +173,9 @@ const ReportsList = ({ reports }) => (
       </ExternalLink>
     </div>
     <div className='flex flex-col gap-4'>
-      <BlankReportItem date={new Date()} />
+      {availableReports?.map(report => (
+        <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
+      ))}
       {reports.map(report => (
         <ReportItem key={report.date} {...{ report }} />
       ))}
@@ -261,8 +255,24 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     async () => await readTeamDetails({ organizationName, projectId, teamId })
   )
 
-  if (teamsLoading) return <></>
-  
+  const {
+    isLoading: reportsLoading,
+    data: reports
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'reports'],
+    async () => await readTeamReports({ organizationName, projectId, teamId })
+  )
+
+  const {
+    isLoading: availableReportsLoading,
+    data: availableReports
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'available-reports'],
+    async () => await readAvailableReports({ organizationName, projectId, teamId })
+  )
+
+  if (teamsLoading || reportsLoading) return <></>
+
   return (
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
       <div className='flex items-center col-span-12'>
@@ -334,7 +344,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
         <HealthLineChart />
       </div>
       <div className='col-span-12 mb-8'>
-        <ReportsList reports={REPORTS} />
+        <ReportsList reports={[]} {...{ availableReports, selectedTeam }} />
       </div>
     </div>
   )
