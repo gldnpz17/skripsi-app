@@ -5,6 +5,9 @@ const Format = {
     // TODO: You know, we shouldn't be using floating-point numbers when working with money right?
     return Intl.NumberFormat("id", { style: "currency", currency: "IDR" }).format(Math.round(amount))
   },
+  number: (amount, precision) => {
+    return Math.round(amount * Math.pow(10, precision)) / Math.pow(10, precision)
+  },
   status: (status) => {
     const dict = {
       'Healthy': 'Healthy',
@@ -43,7 +46,18 @@ const Format = {
       return 'right on time'
     }
   },
-  reportKey: ({ startDate, endDate }) => `${startDate.toISO()}_${endDate.toISO()}`
+  reportKey: ({ startDate, endDate }) => `${startDate.toISO()}_${endDate.toISO()}`,
+  briefDate: (date) => date.toFormat('dd MMM yyyy'),
+  fullDate: (date) => date.toFormat('dd MMMM yyyy'),
+  error: (code) => {
+    const dict = {
+      'TEAM_NO_EFFORT_COST': {
+        message: "The Cost/Effort value not set."
+      }
+    }
+
+    return dict[code] ?? { message: code }
+  }
 }
 
 export { Format }

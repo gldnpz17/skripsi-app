@@ -127,11 +127,12 @@ WHERE
             await connection.ExecuteAsync(sql, args);
         }
 
-        public async Task UpdateDeadline(string organizationName, string projectId, string teamId, DateTime deadline)
+        public async Task UpdateTeam(string organizationName, string projectId, string teamId, DateTime? deadline, int? costPerEffort)
         {
-            var sql = @"
-UPDATE tracked_teams 
-SET deadline = @Deadline
+            var sql = @$"
+UPDATE tracked_teams SET
+    deadline = COALESCE(@Deadline, deadline),
+    cost_per_effort = COALESCE(@CostPerEffort, cost_per_effort)
 WHERE
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
@@ -145,7 +146,8 @@ WHERE
                 OrganizationName = organizationName,
                 ProjectId = projectId,
                 TeamId = teamId,
-                Deadline = deadline
+                Deadline = deadline,
+                CostPerEffort = costPerEffort
             };
 
             await connection.ExecuteAsync(sql, args);

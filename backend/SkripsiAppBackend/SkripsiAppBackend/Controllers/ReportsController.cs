@@ -135,5 +135,26 @@ namespace SkripsiAppBackend.Controllers
         {
             return await reportUseCases.GetTimespanSprints(organizationName, projectId, teamId, start, end);
         }
+
+        [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/new-report-metrics")]
+        [HttpGet]
+        public async Task<ReportUseCases.ReportMetrics> ReadNewReportMetrics(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId,
+            [FromQuery] DateTime start,
+            [FromQuery] DateTime end,
+            [FromQuery] int expenditure)
+        {
+            return await reportUseCases.CalculateReportMetrics(
+                organizationName,
+                projectId,
+                teamId, new ReportUseCases.Report()
+                {
+                    StartDate = start,
+                    EndDate = end,
+                    Expenditure = expenditure
+                });
+        }
     }
 }

@@ -47,6 +47,7 @@ namespace SkripsiAppBackend.Controllers
             public string Name { get; set; }
             public DateTime? Deadline { get; set; }
 
+            public int? CostPerEffort { get; set; }
             public IAzureDevopsService.Organization Organization { get; set; }
             public IAzureDevopsService.Project Project { get; set; }
 
@@ -120,8 +121,6 @@ namespace SkripsiAppBackend.Controllers
         public struct TeamDetails
         {
             public Team Team { get; set; }
-            public TeamUseCases.TimelinessMetric TimelinessMetric { get; set; }
-            public TeamUseCases.FeatureMetric FeatureMetric { get; set; }
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
@@ -140,9 +139,7 @@ namespace SkripsiAppBackend.Controllers
 
             return new TeamDetails()
             {
-                Team = await GetTeam(),
-                TimelinessMetric = await teamUseCases.CalculateTimelinessMetricAsync(organizationName, projectId, teamId),
-                FeatureMetric = await teamUseCases.CalculateFeatureMetricAsync(organizationName, projectId, teamId),
+                Team = await GetTeam()
             };
 
             async Task<Team> GetTeam()
@@ -161,6 +158,7 @@ namespace SkripsiAppBackend.Controllers
                     Name = team.Name,
                     Project = project,
                     Deadline = trackedTeam.Deadline,
+                    CostPerEffort = trackedTeam.CostPerEffort,
                     Organization = new IAzureDevopsService.Organization()
                     {
                         Name = organizationName
@@ -225,6 +223,7 @@ namespace SkripsiAppBackend.Controllers
         public struct UpdateTeamDto
         {
             public DateTime? Deadline { get; set; }
+            public int CostPerEffort { get; set; }
         }
 
         [HttpPatch("{organizationName}/{projectId}/{teamId}")]
@@ -235,13 +234,11 @@ namespace SkripsiAppBackend.Controllers
             [FromBody] UpdateTeamDto dto
         )
         {
-            if (dto.Deadline != null)
-            {
-                await database.TrackedTeams.UpdateDeadline(organizationName,
-                                                           projectId,
-                                                           teamId,
-                                                           (DateTime)dto.Deadline);
-            }
+            await database.TrackedTeams.UpdateTeam(organizationName,
+                                                   projectId,
+                                                   teamId,
+                                                   dto.Deadline,
+                                                   dto.CostPerEffort);
 
             return Ok();
         }

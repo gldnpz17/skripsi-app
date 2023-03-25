@@ -9,14 +9,7 @@ import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { useCallback } from "react"
 import { DateTime } from "luxon"
 import { FormInput } from "../Components/Common/FormInput"
-
-const REPORTS = [
-  { date: new Date(), velocity: 33, expenditureRate: 3300000, status: 'critical' },
-  { date: new Date(), velocity: 23, expenditureRate: 3100000, status: 'atRisk' },
-  { date: new Date(), velocity: 36, expenditureRate: 3600000, status: 'critical' },
-  { date: new Date(), velocity: 38, expenditureRate: 3700000, status: 'atRisk' },
-  { date: new Date(), velocity: 45, expenditureRate: 3200000, status: 'healthy' }
-]
+import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 
 const SectionTitle = ({ children }) => (
   <div className='text-sm items-center font-bold text-gray-400 mb-4'>
@@ -24,11 +17,13 @@ const SectionTitle = ({ children }) => (
   </div>
 )
 
-const ReportsSection = ({ reports }) => (
+const ReportsSection = ({ reports, availableReports, selectedTeam }) => (
   <div>
     <SectionTitle>Monthly Reports</SectionTitle>
     <div className='flex flex-col gap-4'>
-      <BlankReportItem date={new Date()} />
+      {availableReports?.map(report => (
+        <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
+      ))}
       {reports.map(report => (
         <ReportItem key={report.date} {...{ report }} />
       ))}
@@ -45,17 +40,30 @@ const GeneralSection = ({ team }) => {
   return (
     <div className='mb-10'>
       <SectionTitle>General</SectionTitle>
-      <FormInput
-        label='Team project deadline'
-        type='date'
-        value={team.deadline?.toISODate()}
-        onChange={updateTeamAsync(({ target }) => ({
-          organizationName: team.organization.name,
-          projectId: team.project.id,
-          teamId: team.id,
-          deadline: DateTime.fromISO(target.value).endOf('day').toISO() 
-        }))}
-      />
+      <div className='flex flex-col gap-4'>
+        <FormInput
+          label='Team project deadline'
+          type='date'
+          value={team.deadline?.toISODate()}
+          onChange={updateTeamAsync(({ target }) => ({
+            organizationName: team.organization.name,
+            projectId: team.project.id,
+            teamId: team.id,
+            deadline: DateTime.fromISO(target.value).endOf('day').toISO() 
+          }))}
+        />
+        <FormInput
+          label='Cost per Effort'
+          type='number'
+          value={team.costPerEffort}
+          onChange={updateTeamAsync(({ target }) => ({
+            organizationName: team.organization.name,
+            projectId: team.project.id,
+            teamId: team.id,
+            costPerEffort: Number.parseInt(target.value)
+          }))}
+        />
+      </div>
     </div>
   )
 }
@@ -68,12 +76,28 @@ const TeamDetailsPage = () => {
     async () => await readTeamDetails({ organizationName, projectId, teamId })
   )
 
+  const {
+    isLoading: reportsLoading,
+    data: reports
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'reports'],
+    async () => await readTeamReports({ organizationName, projectId, teamId })
+  )
+
+  const {
+    isLoading: availableReportsLoading,
+    data: availableReports
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'available-reports'],
+    async () => await readAvailableReports({ organizationName, projectId, teamId })
+  )
+
   return (
     <div className='pr-80 pt-8 h-full overflow-auto'>
-      {!detailsLoading && (
+      {!detailsLoading && !reportsLoading && !availableReportsLoading && (
         <>
           <GeneralSection team={details.team} />
-          <ReportsSection reports={REPORTS} />
+          <ReportsSection selectedTeam={{ organizationName, projectId, teamId }} {...{ availableReports, reports }} />
         </>
       )}
     </div>

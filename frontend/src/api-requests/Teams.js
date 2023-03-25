@@ -6,17 +6,9 @@ const mapTeamDetails = ({
     deadline,
     ...team
   },
-  timelinessMetric: {
-    estimatedCompletionDate,
-    ...timelinessMetric
-  },
   ...details 
 }) => ({
   ...details,
-  timelinessMetric: {
-    ...timelinessMetric,
-    estimatedCompletionDate: estimatedCompletionDate ? DateTime.fromISO(estimatedCompletionDate) : null
-  },
   team: {
     ...team,
     deadline: deadline ? DateTime.fromISO(deadline) : null
@@ -31,7 +23,7 @@ const trackTeam = async ({ organizationName, projectId, teamId }) => await axios
 
 const readTeamDetails = async ({ organizationName, projectId, teamId }) => mapTeamDetails((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}`)).data)
 
-const updateTeam = async ({ organizationName, projectId, teamId, deadline }) => await axios.patch(`/api/teams/${organizationName}/${projectId}/${teamId}`, { deadline })
+const updateTeam = async ({ organizationName, projectId, teamId, deadline, costPerEffort }) => await axios.patch(`/api/teams/${organizationName}/${projectId}/${teamId}`, { deadline, costPerEffort })
 
 export {
   readUntrackedTeams,

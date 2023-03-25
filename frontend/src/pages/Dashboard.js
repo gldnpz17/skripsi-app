@@ -232,28 +232,28 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   const projectName = selectedTeam.project.name
   const teamId = selectedTeam.id
 
-  const {
-    data: {
-      timelinessMetric: {
-        errorCode: timelinessErrorCode,
-        estimatedCompletionDate,
-        severity: timelinessSeverity,
-        targetDateErrorInDays
-      },
-      featureMetric: {
-        errorCode: featureErrorCode,
-        severity: featureSeverity,
-        estimatedFeatureCompletion
-      }
-    } = {
-      timelinessMetric: { },
-      featureMetric: { }
-    },
-    isLoading: teamsLoading
-  } = useQuery(
-    ['teams', organizationName, projectId, teamId],
-    async () => await readTeamDetails({ organizationName, projectId, teamId })
-  )
+  // const {
+  //   data: {
+  //     timelinessMetric: {
+  //       errorCode: timelinessErrorCode,
+  //       estimatedCompletionDate,
+  //       severity: timelinessSeverity,
+  //       targetDateErrorInDays
+  //     },
+  //     featureMetric: {
+  //       errorCode: featureErrorCode,
+  //       severity: featureSeverity,
+  //       estimatedFeatureCompletion
+  //     }
+  //   } = {
+  //     timelinessMetric: { },
+  //     featureMetric: { }
+  //   },
+  //   isLoading: teamsLoading
+  // } = useQuery(
+  //   ['teams', organizationName, projectId, teamId],
+  //   async () => await readTeamDetails({ organizationName, projectId, teamId })
+  // )
 
   const {
     isLoading: reportsLoading,
@@ -271,7 +271,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     async () => await readAvailableReports({ organizationName, projectId, teamId })
   )
 
-  if (teamsLoading || reportsLoading) return <></>
+  if (reportsLoading || availableReportsLoading) return <></>
 
   return (
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
@@ -294,7 +294,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
           </div>
         </div>
       </div>
-      <div className='col-span-4'>
+      {/* <div className='col-span-4'>
         <HealthComponentStatus
           title="Timeliness"
           severity={timelinessSeverity}
@@ -339,12 +339,12 @@ const TeamDetailsSection = ({ selectedTeam }) => {
             content='Rp. 13.400.000,00'
           />
         </HealthComponentStatus>
-      </div>
+      </div> */}
       <div className='col-span-12'>
         <HealthLineChart />
       </div>
       <div className='col-span-12 mb-8'>
-        <ReportsList reports={[]} {...{ availableReports, selectedTeam }} />
+        <ReportsList {...{ reports, availableReports, selectedTeam }} />
       </div>
     </div>
   )

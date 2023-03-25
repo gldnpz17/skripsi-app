@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Common.Authorization;
+using SkripsiAppBackend.Common.Middlewares;
+using SkripsiAppBackend.Common.ModelBinder;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services;
 using SkripsiAppBackend.Services.AzureDevopsService;
@@ -26,8 +28,10 @@ var applicationConfiguration = new Configuration(
 );
 
 // Add services to the container.
-
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.ModelBinderProviders.Insert(0, new RelativeDateTimeModelBinder.Provider());
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -75,6 +79,8 @@ if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.P
 {
     app.UseHttpsRedirection();
 }
+
+app.UseErrorHandling();
 
 app.UseAzureDevopsService(AzureDevopsServiceType.REST);
 

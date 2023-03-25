@@ -43,7 +43,7 @@ const BlankReportItem = ({
     const projectId = selectedTeam.project.id
     const teamId = selectedTeam.id
 
-    window.open(`/teams/${organizationName}/${projectId}/${teamId}/reports/create?start=${startDate.toISO()}&end=${endDate.toISO()}`, '_blank')
+    window.open(`/teams/${organizationName}/${projectId}/${teamId}/reports/create?start=${encodeURIComponent(startDate.toISO())}&end=${encodeURIComponent(endDate.toISO())}`, '_blank')
   }, [startDate, endDate, selectedTeam])
 
   return (
