@@ -292,7 +292,7 @@ namespace SkripsiAppBackend.UseCases
                 .ToList();
 
 
-            var beforeMetrics = await CalculateCumulativeMetrics(
+            var beforeMetrics = CalculateCumulativeMetrics(
                 organizationName,
                 projectId,
                 teamId,
@@ -300,7 +300,7 @@ namespace SkripsiAppBackend.UseCases
                 EstimateAtCompletionFormulas.Basic,
                 EstimateToCompletionFormulas.Derived);
 
-            var afterMetrics = await CalculateCumulativeMetrics(
+            var afterMetrics = CalculateCumulativeMetrics(
                 organizationName,
                 projectId,
                 teamId,
@@ -308,10 +308,12 @@ namespace SkripsiAppBackend.UseCases
                 EstimateAtCompletionFormulas.Basic,
                 EstimateToCompletionFormulas.Derived);
 
+            await Task.WhenAll(beforeMetrics, afterMetrics);
+
             return new ReportMetrics()
             {
-                CumulativeMetrics = beforeMetrics,
-                DeltaMetrics = afterMetrics - beforeMetrics
+                CumulativeMetrics = beforeMetrics.Result,
+                DeltaMetrics = afterMetrics.Result - beforeMetrics.Result
             };
         }
 
@@ -332,23 +334,26 @@ namespace SkripsiAppBackend.UseCases
                 throw new UserFacingException(UserFacingException.ErrorCodes.REPORT_INCOMPLETE_INFORMATION);
             }
 
-            var team = await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
-            var workDays = await azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
+            var team = database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
+            var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
+            var teamEffort = teamUseCases.CalculateTeamEffort(organizationName, projectId, teamId);
+            var completedEffort = CalculateReportCompletedEffort(organizationName, projectId, teamId, (DateTime)report.StartDate, (DateTime)report.EndDate);
 
-            var reportDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)report.EndDate, workDays);
-            var teamDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)team.Deadline, workDays);
-            var teamEffort = await teamUseCases.CalculateTeamEffort(organizationName, projectId, teamId);
+            await Task.WhenAll(team, workDays, teamEffort, completedEffort);
 
-            var plannedEffort = (reportDuration / teamDuration) * teamEffort;
-            var completedEffort = await CalculateReportCompletedEffort(organizationName, projectId, teamId, (DateTime)report.StartDate, (DateTime)report.EndDate);
+            var reportDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)report.EndDate, workDays.Result);
+            var teamDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
+            
 
-            if (!team.CostPerEffort.HasValue)
+            var plannedEffort = (reportDuration / teamDuration) * teamEffort.Result;
+            
+            if (!team.Result.CostPerEffort.HasValue)
             {
                 throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_EFFORT_COST);
             }
 
-            var plannedValue = CalculateEffortValue((int)team.CostPerEffort, plannedEffort);
-            var earnedValue = CalculateEffortValue((int)team.CostPerEffort, completedEffort);
+            var plannedValue = CalculateEffortValue((int)team.Result.CostPerEffort, plannedEffort);
+            var earnedValue = CalculateEffortValue((int)team.Result.CostPerEffort, completedEffort.Result);
 
             return new BasicMetrics()
             {
@@ -372,10 +377,23 @@ namespace SkripsiAppBackend.UseCases
                 teamId,
                 report
             ));
+            var allBasicMetricsTasks = Task.WhenAll(basicMetricsTasks);
 
-            var cumulativeBasicMetricsList = (await Task.WhenAll(basicMetricsTasks)).ToList();
+            var team = database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
 
-            var cumulativeBasicMetrics = cumulativeBasicMetricsList.Aggregate(BasicMetrics.GetEmpty(), (current, cumulative) => cumulative + current);
+            var completedEffortTasks = reports.Select(async (report) => await CalculateReportCompletedEffort(
+                organizationName,
+                projectId,
+                teamId,
+                (DateTime)report.StartDate,
+                (DateTime)report.EndDate
+            ));
+            var allCompletedEffortTasks = Task.WhenAll(completedEffortTasks);
+
+            await Task.WhenAll(allBasicMetricsTasks, team, allCompletedEffortTasks);
+
+            var cumulativeBasicMetrics = allBasicMetricsTasks.Result
+                .Aggregate(BasicMetrics.GetEmpty(), (current, cumulative) => cumulative + current);
 
             var healthMetrics = new HealthMetrics()
             {
@@ -390,24 +408,15 @@ namespace SkripsiAppBackend.UseCases
                 throw new UserFacingException(UserFacingException.ErrorCodes.REPORT_INCOMPLETE_INFORMATION);
             }
 
-            var team = await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
-            var completedEffortTasks = reports.Select(async (report) => await CalculateReportCompletedEffort(
-                organizationName,
-                projectId,
-                teamId,
-                (DateTime)report.StartDate,
-                (DateTime)report.EndDate
-            ));
-            var totalEffort = (await Task.WhenAll(completedEffortTasks))
-                .ToList()
+            var totalEffort = allCompletedEffortTasks.Result
                 .Aggregate(0d, (effort, total) => effort + total);
 
-            if (!team.CostPerEffort.HasValue)
+            if (!team.Result.CostPerEffort.HasValue)
             {
                 throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_EFFORT_COST);
             }
 
-            var budgetAtCompletion = Convert.ToInt32(Convert.ToDouble(team.CostPerEffort.Value) * totalEffort);
+            var budgetAtCompletion = Convert.ToInt32(Convert.ToDouble(team.Result.CostPerEffort.Value) * totalEffort);
 
             if (eacFormula == EstimateAtCompletionFormulas.Derived && etcFormula == EstimateToCompletionFormulas.Derived)
             {
