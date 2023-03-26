@@ -5,6 +5,14 @@ const Format = {
     // TODO: You know, we shouldn't be using floating-point numbers when working with money right?
     return Intl.NumberFormat("id", { style: "currency", currency: "IDR" }).format(Math.round(amount))
   },
+  performanceIndex: (value) => {
+    let status = 'Healthy'
+    if (value < 1) {
+      status = 'Critical'
+    }
+
+    return ({ status })
+  },
   number: (amount, precision) => {
     return Math.round(amount * Math.pow(10, precision)) / Math.pow(10, precision)
   },

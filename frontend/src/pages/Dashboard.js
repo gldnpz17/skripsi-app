@@ -164,7 +164,7 @@ const HealthLineChart = () => (
   </div>
 )
 
-const ReportsList = ({ selectedTeam, availableReports, reports }) => (
+const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
   <div>
     <div className='flex text-sm items-center mb-4'>
       <span className='flex-grow font-bold text-gray-400'>Recent Reports</span>
@@ -176,8 +176,8 @@ const ReportsList = ({ selectedTeam, availableReports, reports }) => (
       {availableReports?.map(report => (
         <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
       ))}
-      {reports.map(report => (
-        <ReportItem key={report.date} {...{ report }} />
+      {reportMetrics.map(reportMetric => (
+        <ReportItem key={reportMetric.report.startDate} {...{ reportMetric }} />
       ))}
     </div>
   </div>
@@ -257,7 +257,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
 
   const {
     isLoading: reportsLoading,
-    data: reports
+    data: reportMetrics
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
     async () => await readTeamReports({ organizationName, projectId, teamId })
@@ -344,7 +344,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
         <HealthLineChart />
       </div>
       <div className='col-span-12 mb-8'>
-        <ReportsList {...{ reports, availableReports, selectedTeam }} />
+        <ReportsList {...{ reportMetrics, availableReports, selectedTeam }} />
       </div>
     </div>
   )

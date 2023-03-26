@@ -38,8 +38,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton(applicationConfiguration);
-builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
-builder.Services.AddSingleton<AccessTokenService>();
+builder.Services.AddScoped<IKeyValueService, InMemoryKeyValueService>();
+builder.Services.AddScoped<AccessTokenService>();
 
 builder.Services.AddScoped<TeamUseCases>();
 builder.Services.AddScoped<ReportUseCases>();

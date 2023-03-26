@@ -10,6 +10,6 @@
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
 
-        public int Expenditure { get; set; }
+        public long Expenditure { get; set; }
     }
 }

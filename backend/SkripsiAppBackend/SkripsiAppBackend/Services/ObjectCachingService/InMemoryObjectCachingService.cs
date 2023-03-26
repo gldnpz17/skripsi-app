@@ -48,6 +48,13 @@
         {
             foreach (var type in types)
             {
+                var serviceType = typeof(IObjectCachingService<>).MakeGenericType(type);
+
+                services.AddScoped(serviceType, (service) => GetCachingService(type));
+            }
+
+            object GetCachingService(Type type)
+            {
                 var cachingServiceConstructor = typeof(InMemoryObjectCachingService<>)
                     .MakeGenericType(type)
                     .GetConstructor(new Type[] { typeof(TimeSpan) });
@@ -56,12 +63,10 @@
                 {
                     throw new Exception("Can't find suitable InMemoryObjectCachingService constructor.");
                 }
+
                 var cachingService = cachingServiceConstructor.Invoke(new object[] { TimeSpan.FromSeconds(5) });
 
-                var serviceType = typeof(IObjectCachingService<>)
-                    .MakeGenericType(type);
-
-                services.AddSingleton(serviceType, cachingService);
+                return cachingService;
             }
         }
 

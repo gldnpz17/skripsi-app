@@ -1,7 +1,16 @@
+import { useMemo } from "react"
 import { useMutation, useQueryClient } from "react-query"
+const defaultOptions = {
+  onSuccess: () => {}
+}
 
-const useSimpleMutation = (mutate, queryKeys = []) => {
+const useSimpleMutation = (mutate, queryKeys = [], options) => {
   const queryClient = useQueryClient()
+
+  const appliedOptions = useMemo(() => ({
+    ...defaultOptions,
+    ...options
+  }), [options])
 
   const { 
     isLoading, 
@@ -9,6 +18,7 @@ const useSimpleMutation = (mutate, queryKeys = []) => {
   } = useMutation(mutate, {
     onSuccess: () => {
       queryKeys.forEach(key => queryClient.refetchQueries(key))
+      appliedOptions.onSuccess()
     }
   })
 

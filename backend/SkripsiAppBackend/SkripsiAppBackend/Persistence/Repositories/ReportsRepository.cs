@@ -10,7 +10,7 @@ namespace SkripsiAppBackend.Persistence.Repositories
         {
         }
 
-        public async Task CreateReport(TrackedTeamsRepository.TrackedTeamKey teamKey, DateTime startDate, DateTime endDate)
+        public async Task CreateReport(TrackedTeamsRepository.TrackedTeamKey teamKey, DateTime startDate, DateTime endDate, int expenditure)
         {
             var sql = @"
 INSERT INTO reports (
@@ -18,13 +18,15 @@ INSERT INTO reports (
     project_id,
     team_id,
     start_date,
-    end_date
+    end_date,
+    expenditure
 ) VALUES (
     @OrganizationName,
     @ProjectId,
     @TeamId,
     @StartDate,
-    @EndDate
+    @EndDate,
+    @Expenditure
 );";
 
             using var connection = GetConnection();
@@ -35,7 +37,8 @@ INSERT INTO reports (
                 teamKey.ProjectId,
                 teamKey.TeamId,
                 StartDate = startDate,
-                EndDate = endDate
+                EndDate = endDate,
+                Expenditure = expenditure
             };
 
             await connection.ExecuteAsync(sql, args);

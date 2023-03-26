@@ -2,6 +2,8 @@
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.UseCases;
+using System.Runtime.CompilerServices;
+using static SkripsiAppBackend.UseCases.ReportUseCases;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -46,7 +48,8 @@ namespace SkripsiAppBackend.Controllers
                     },
                     StartDate = report.StartDate,
                     EndDate = report.EndDate,
-                    Expenditure = report.Expenditure
+                    // TODO: Properly use long.
+                    Expenditure = Convert.ToInt32(report.Expenditure)
                 };
             }
         }
@@ -55,6 +58,17 @@ namespace SkripsiAppBackend.Controllers
         {
             public DateTime StartDate { get; set; }
             public DateTime EndDate { get; set; }
+            public int Expenditure { get; set; }
+
+            public ReportUseCases.Report ToUseCaseModel()
+            {
+                return new ReportUseCases.Report()
+                {
+                    StartDate = StartDate,
+                    EndDate = EndDate,
+                    Expenditure = Expenditure
+                };
+            }
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports")]
@@ -65,14 +79,7 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute]string teamId,
             [FromBody]CreateReportDto dto)
         {
-            var teamKey = new TrackedTeamsRepository.TrackedTeamKey()
-            {
-                OrganizationName = organizationName,
-                ProjectId = projectId,
-                TeamId = teamId
-            };
-
-            await database.Reports.CreateReport(teamKey, dto.StartDate, dto.EndDate);
+            await reportUseCases.CreateReport(organizationName, projectId, teamId, dto.ToUseCaseModel());
 
             return Ok();
         }
@@ -95,23 +102,12 @@ namespace SkripsiAppBackend.Controllers
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports")]
         [HttpGet]
-        public async Task<ActionResult<List<Report>>> ReadTeamReports(
+        public async Task<ActionResult<List<SingleReportMetrics>>> ReadTeamReports(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            var teamKey = new TrackedTeamsRepository.TrackedTeamKey()
-            {
-                OrganizationName = organizationName,
-                ProjectId = projectId,
-                TeamId = teamId
-            };
-
-            var reports = await database.Reports.ReadTeamReports(teamKey);
-
-            return reports
-                .Select(report => Report.FromPersistenceModel(report))
-                .ToList();
+            return await reportUseCases.ListExistingReports(organizationName, projectId, teamId);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/available")]

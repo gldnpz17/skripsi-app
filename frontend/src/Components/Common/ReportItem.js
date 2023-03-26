@@ -15,15 +15,24 @@ const ReportStatus = ({ status }) => (
   </span>
 )
 
-const ReportItem = ({ report: { date, velocity, expenditureRate, status } }) => (
+const ReportItem = ({ 
+  reportMetric: {
+    report: {
+      startDate
+    },
+    healthMetrics: {
+      schedulePerformanceIndex,
+      costPerformanceIndex
+    }
+  } 
+}) => (
   <ReportItemContainer>
-    <span className='mr-2'>{Format.month(date)}</span>
-    <ReportStatus {...{ status }} />
+    <span className='mr-2'>{Format.month(startDate)}</span>
     <span className='flex-grow'></span>
     <Speedometer className='h-4 mr-2' />
-    <span className='mr-6 text-gray-400'>{velocity} efforts/sprint</span>
-    <Cash className='h-4 mr-2' />
-    <span className='text-gray-400'>{Format.currency(expenditureRate)}/sprint</span>
+    <ReportStatus status={Format.performanceIndex(schedulePerformanceIndex).status} />
+    <Cash className='h-4 mr-2 ml-4' />
+    <ReportStatus status={Format.performanceIndex(costPerformanceIndex).status} />
   </ReportItemContainer>
 )
 
@@ -49,8 +58,8 @@ const BlankReportItem = ({
   return (
     <ReportItemContainer onClick={createReport}>
       <span className='mr-2'>{Format.month(startDate)}</span>
-      <ReportStatus status='NoData' />
       <span className='flex-grow' />
+      <ReportStatus status='NoData' />
       <Ping />
     </ReportItemContainer>
   )

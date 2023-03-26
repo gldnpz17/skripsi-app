@@ -29,11 +29,27 @@ const mapTimespanSprint = ({
   accountedEndDate: DateTime.fromISO(accountedEndDate)
 })
 
-const readTeamReports = async ({ organizationName, projectId, teamId }) => 
-  (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/reports`)).data
+const mapReportMetric = ({
+  report: {
+    startDate,
+    endDate,
+    ...report
+  },
+  ...reportMetric
+}) => ({
+  ...reportMetric,
+  report: {
+    ...report,
+    startDate: DateTime.fromISO(startDate),
+    endDate: DateTime.fromISO(endDate)
+  }
+})
 
-const createReport = async ({ organizationName, projectId, teamId, report: { startDate, endDate } }) => 
-  (await axios.post(`/api/teams/${organizationName}/${projectId}/${teamId}`, { startDate, endDate }))
+const readTeamReports = async ({ organizationName, projectId, teamId }) => 
+  ((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/reports`)).data).map(mapReportMetric)
+
+const createReport = async ({ organizationName, projectId, teamId, report: { startDate, endDate, expenditure } }) => 
+  (await axios.post(`/api/teams/${organizationName}/${projectId}/${teamId}/reports`, { startDate, endDate, expenditure }))
 
 const readAvailableReports = async ({ organizationName, projectId, teamId }) =>
   ((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/reports/available`)).data)?.map(mapAvailableReport)

@@ -159,9 +159,16 @@ namespace SkripsiAppBackend.UseCases
                 {
                     StartDate = model.StartDate,
                     EndDate = model.EndDate,
-                    Expenditure = model.Expenditure
+                    // TODO: Properly use long.
+                    Expenditure = Convert.ToInt32(model.Expenditure)
                 };
             }
+        }
+
+        public struct SingleReportMetrics
+        {
+            public Report Report { get; set; }
+            public HealthMetrics HealthMetrics { get; set; }
         }
 
         public struct ReportMetrics
@@ -226,7 +233,8 @@ namespace SkripsiAppBackend.UseCases
 
         public async Task<List<AvailableReport>> ListAvailableReports(string organizationName, string projectId, string teamId)
         {
-            var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+            var sprints = (await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId))
+                .FindAll(sprint => sprint.StartDate != null);
 
             if (sprints.Count == 0)
             {
@@ -234,11 +242,9 @@ namespace SkripsiAppBackend.UseCases
             }
 
             var startDate = (DateTime)sprints
-                .FindAll(sprint => sprint.StartDate != null)
                 .OrderBy(sprint => sprint.StartDate)
                 .First().StartDate;
             var endDate = (DateTime)sprints
-                .FindAll(sprint => sprint.EndDate != null)
                 .OrderBy(sprint => sprint.EndDate)
                 .Last().EndDate;
 
@@ -279,7 +285,38 @@ namespace SkripsiAppBackend.UseCases
             return availableReports;
         }
 
-        public async Task<ReportMetrics> CalculateReportMetrics(string organizationName, string projectId, string teamId, Report createdReport)
+        public async Task<List<SingleReportMetrics>> ListExistingReports(string organizationName, string projectId, string teamId)
+        {
+            var teamKey = new TrackedTeamKey()
+            {
+                OrganizationName = organizationName,
+                ProjectId = projectId,
+                TeamId = teamId
+            };
+
+            var reports = await database.Reports.ReadTeamReports(teamKey);
+
+            var reportMetrics = (await Task.WhenAll(reports.Select(async (report) =>
+            {
+                var basicMetrics = await CalculateReportBasicMetrics(organizationName, projectId, teamId, Report.FromModel(report));
+                var healthMetrics = CalculateHealthMetrics(basicMetrics.PlannedValue, basicMetrics.EarnedValue, basicMetrics.ActualCost);
+
+                return new SingleReportMetrics()
+                {
+                    Report = Report.FromModel(report),
+                    HealthMetrics = healthMetrics
+                };
+            })))
+            .ToList();
+
+            return reportMetrics;
+        }
+
+        public async Task<ReportMetrics> CalculateReportMetrics(
+            string organizationName,
+            string projectId,
+            string teamId,
+            Report createdReport)
         {
             var previousReports = (await database.Reports.ReadTeamReports(new TrackedTeamKey()
                 {
@@ -315,6 +352,25 @@ namespace SkripsiAppBackend.UseCases
                 CumulativeMetrics = beforeMetrics.Result,
                 DeltaMetrics = afterMetrics.Result - beforeMetrics.Result
             };
+        }
+
+        public async Task CreateReport(
+            string organizationName,
+            string projectId,
+            string teamId,
+            Report report)
+        {
+            database.Reports.CreateReport(
+                new TrackedTeamKey()
+                {
+                    OrganizationName = organizationName,
+                    ProjectId = projectId,
+                    TeamId = teamId
+                },
+                (DateTime)report.StartDate,
+                (DateTime)report.EndDate,
+                (int)report.Expenditure
+            );
         }
 
         public async Task<MetricsCollection> CalculateMetricsOverview()
@@ -395,13 +451,11 @@ namespace SkripsiAppBackend.UseCases
             var cumulativeBasicMetrics = allBasicMetricsTasks.Result
                 .Aggregate(BasicMetrics.GetEmpty(), (current, cumulative) => cumulative + current);
 
-            var healthMetrics = new HealthMetrics()
-            {
-                CostVariance = cumulativeBasicMetrics.EarnedValue - cumulativeBasicMetrics.ActualCost,
-                ScheduleVariance = cumulativeBasicMetrics.EarnedValue - cumulativeBasicMetrics.PlannedValue,
-                CostPerformanceIndex = cumulativeBasicMetrics.ActualCost == 0 ? 0 : Convert.ToDouble(cumulativeBasicMetrics.EarnedValue) / Convert.ToDouble(cumulativeBasicMetrics.ActualCost),
-                SchedulePerformanceIndex = cumulativeBasicMetrics.PlannedValue == 0 ? 0 : Convert.ToDouble(cumulativeBasicMetrics.EarnedValue) / Convert.ToDouble(cumulativeBasicMetrics.PlannedValue)
-            };
+            var healthMetrics = CalculateHealthMetrics(
+                cumulativeBasicMetrics.EarnedValue,
+                cumulativeBasicMetrics.EarnedValue,
+                cumulativeBasicMetrics.ActualCost
+            );
 
             if (reports.Any(report => !report.StartDate.HasValue || !report.EndDate.HasValue))
             {
@@ -477,6 +531,17 @@ namespace SkripsiAppBackend.UseCases
                 BasicMetrics = cumulativeBasicMetrics,
                 HealthMetrics = healthMetrics,
                 ForecastMetrics = forecastMetrics
+            };
+        }
+
+        private HealthMetrics CalculateHealthMetrics(int plannedValue, int earnedValue, int actualCost)
+        {
+            return new HealthMetrics()
+            {
+                CostVariance = earnedValue - actualCost,
+                ScheduleVariance = earnedValue - plannedValue,
+                CostPerformanceIndex = actualCost == 0 ? 0 : Convert.ToDouble(earnedValue) / Convert.ToDouble(actualCost),
+                SchedulePerformanceIndex = plannedValue == 0 ? 0 : Convert.ToDouble(earnedValue) / Convert.ToDouble(plannedValue)
             };
         }
 

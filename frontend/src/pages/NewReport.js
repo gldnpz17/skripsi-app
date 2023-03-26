@@ -4,11 +4,12 @@ import { FormInput } from "../Components/Common/FormInput"
 import { CalendarRange, HeartPulse, Information, Save } from "../common/icons"
 import { useCallback, useMemo, useState } from "react"
 import { DateTime } from "luxon"
-import { readReportMetrics, readTimespanSprints } from "../api-requests/Reports"
+import { createReport, readReportMetrics, readTimespanSprints } from "../api-requests/Reports"
 import { useParams } from "react-router-dom"
 import { useQueryParams } from "../Hooks/useQueryParams"
 import { Format } from "../common/Format"
 import { Spinner } from "../Components/Common/Spinner"
+import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 
 const ReportSprint = ({ 
   timespanSprint: {
@@ -35,7 +36,7 @@ const ReportSprint = ({
       <span>&nbsp;</span>
       <span>{Format.briefDate(accountedEndDate)}</span>
     </span>
-    <span className='bg-slate-700 rounded-full px-4 py-1 text-sm'>{accountedEffort} Effort</span>
+    <span className='bg-slate-700 rounded-full px-4 py-1 text-sm'>{Format.number(accountedEffort, 1)} Effort</span>
   </div>
 )
 
@@ -145,14 +146,31 @@ const MetricGroup = ({ metricSpecs, data }) => {
   )
 }
 
-const ActionSection = () => (
-  <div className='flex justify-end max-w-2xl'>
-    <Button>
-      <Save className='h-4' />
-      Save
-    </Button>
-  </div>
-)
+const ActionSection = ({ organizationName, projectId, teamId, start, end, expenditure }) => {
+  const onSuccess = () => window.close()
+
+  const { mutateAsync } = useSimpleMutation(createReport, [['teams']], { onSuccess })
+
+  return (
+    <div className='flex justify-end max-w-2xl'>
+      <Button
+        onClick={mutateAsync(() => ({
+          organizationName,
+          projectId,
+          teamId,
+          report: {
+            startDate: start,
+            endDate: end,
+            expenditure
+          }
+        }))}
+      >
+        <Save className='h-4' />
+        Save
+      </Button>
+    </div>
+  )
+}
 
 const MetricsSection = ({ organizationName, projectId, teamId, start, end, expenditure }) => {
   const {
@@ -288,7 +306,7 @@ const NewReportPage = () => {
         </div>
         <div className='flex-grow' />
         <div>
-          <ActionSection />
+          <ActionSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
         </div>
       </div>
       <MetricsSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
