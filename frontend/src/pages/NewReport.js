@@ -64,7 +64,7 @@ const DataSection = ({ expenditure, setExpenditure }) => (
       value={expenditure}
       label='Expenditure (Rp)'
       type='number'
-      onChange={(e) => setExpenditure(Number.parseInt(e.target.value))}
+      onChange={({ target: { value } }) => setExpenditure(value ? Number.parseInt(value) : 0)}
     />
   </>
 )
@@ -103,7 +103,7 @@ const HealthMetric = ({ label, value, additionalValue }) => (
 
 const MetricGroup = ({ metricSpecs, data }) => {
   const getValue = useCallback((key) => data.cumulativeMetrics[metricSpecs.key][key], [data])
-  const getDeltaValue = useCallback((key) => data.deltaMetrics[metricSpecs.key][key], data)
+  const getDeltaValue = useCallback((key) => data.deltaMetrics[metricSpecs.key][key], [data])
   const getDeltaColor = useCallback((key) => {
     const higherIsBetter = metricSpecs.metrics[key].higherIsBetter
     const value = data.deltaMetrics[metricSpecs.key][key]
@@ -118,14 +118,14 @@ const MetricGroup = ({ metricSpecs, data }) => {
     }
   }, [data])
 
-  const formatData = (data, key) => {
+  const formatData = useCallback((data, key) => {
     switch (metricSpecs.metrics[key].type) {
       case 'currency':
         return Format.currency(data)
       case 'number':
         return Format.number(data, 2)
     }
-  }
+  }, [data])
 
   return (
     <>

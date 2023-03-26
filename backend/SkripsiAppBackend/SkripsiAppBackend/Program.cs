@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
+using Microsoft.Extensions.DependencyInjection;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Common.Authorization;
@@ -44,7 +45,8 @@ builder.Services.AddScoped<TeamUseCases>();
 builder.Services.AddScoped<ReportUseCases>();
 
 builder.Services.AddInMemoryObjectCaching(
-    typeof(List<AuthenticationMiddleware.ProfileTeam>)
+    typeof(List<AuthenticationMiddleware.ProfileTeam>),
+    typeof(IAzureDevopsService.Team)
 );
 
 if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
