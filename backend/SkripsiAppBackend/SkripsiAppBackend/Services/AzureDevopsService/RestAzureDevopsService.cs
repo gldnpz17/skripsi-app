@@ -132,6 +132,9 @@ namespace SkripsiAppBackend.Services.AzureDevopsService
 
                 [JsonProperty(PropertyName = "Microsoft.VSTS.Scheduling.Effort")]
                 public double effort { get; set; }
+
+                [JsonProperty(PropertyName = "System.IterationPath")]
+                public string iterationPath { get; set; }
             }
 
             public string id { get; set; }
@@ -257,7 +260,15 @@ namespace SkripsiAppBackend.Services.AzureDevopsService
                 .WithHeader(AUTHORIZATION_HEADER_KEY, await GetAuthorizationHeader())
                 .GetJsonAsync<BacklogWorkItems>();
 
-            return await GetWorkItemDetails(organizationName, response.workItems);
+            var workItemDetails = await GetWorkItemDetails(organizationName, response.workItems);
+            workItemDetails = workItemDetails
+                // Only return backlog work items that aren't in a sprint.
+                // e.g. work items with the iteration path "TestProject\\Sprint 2" doesn't count
+                // but work items with the iteration path "TestProject" does.
+                .Where(workItem => !workItem.IterationPath.Contains('\\'))
+                .ToList();
+
+            return workItemDetails;
         }
 
         private async Task<IAzureDevopsService.WorkItem> GetWorkItemDetails(string organizationName, WorkItemRelation workItemRelation)
@@ -279,7 +290,8 @@ namespace SkripsiAppBackend.Services.AzureDevopsService
                 Title = response.fields.title,
                 BusinessValue = response.fields.businessValue,
                 Effort = response.fields.effort,
-                Priority = response.fields.priority
+                Priority = response.fields.priority,
+                IterationPath = response.fields.iterationPath
             };
         }
 

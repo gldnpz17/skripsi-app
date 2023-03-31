@@ -19,6 +19,9 @@ const readUntrackedTeams = async ({ projectId }) => await (await axios.get(`/api
 
 const readTrackedTeams = async () => await (await axios.get('/api/teams/tracked')).data
 
+const readTeamMetrics = async ({ organizationName, projectId, teamId }) => 
+  (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics`)).data
+
 const trackTeam = async ({ organizationName, projectId, teamId }) => await axios.post(`/api/teams`, { organizationName, projectId, teamId })
 
 const readTeamDetails = async ({ organizationName, projectId, teamId }) => mapTeamDetails((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}`)).data)
@@ -28,6 +31,7 @@ const updateTeam = async ({ organizationName, projectId, teamId, deadline, costP
 export {
   readUntrackedTeams,
   readTrackedTeams,
+  readTeamMetrics,
   trackTeam,
   readTeamDetails,
   updateTeam

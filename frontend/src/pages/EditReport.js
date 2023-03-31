@@ -1,35 +1,27 @@
 import { useQuery } from "react-query"
 import { Button } from "../Components/Common/Button"
-import { FormInput } from "../Components/Common/FormInput"
-import { CalendarRange, HeartPulse, Information, Save } from "../common/icons"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { DateTime } from "luxon"
-import { createReport, readReportById, readReportMetrics, readTimespanSprints } from "../api-requests/Reports"
+import { Save } from "../common/icons"
+import { useCallback, useEffect, useState } from "react"
+import { createReport, readReportById, readTimespanSprints, updateReport } from "../api-requests/Reports"
 import { useParams } from "react-router-dom"
 import { useQueryParams } from "../Hooks/useQueryParams"
-import { Format } from "../common/Format"
-import { Spinner } from "../Components/Common/Spinner"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { TitleSection } from "../Components/ReportCommon/TitleSection"
 import { SprintsSection } from "../Components/ReportCommon/SprintSection"
 import { DataSection } from "../Components/ReportCommon/DataSection"
 import { MetricsSection } from "../Components/ReportCommon/MetricSection"
 
-const ActionSection = ({ organizationName, projectId, teamId, start, end, expenditure }) => {
+const ActionSection = ({ reportId, expenditure }) => {
   const onSuccess = () => window.close()
 
-  const { mutateAsync } = useSimpleMutation(createReport, [['teams']], { onSuccess })
+  const { mutateAsync } = useSimpleMutation(updateReport, [['teams', 'report']], { onSuccess })
 
   return (
     <div className='flex justify-end max-w-2xl'>
       <Button
         onClick={mutateAsync(() => ({
-          organizationName,
-          projectId,
-          teamId,
+          id: reportId,
           report: {
-            startDate: start,
-            endDate: end,
             expenditure
           }
         }))}
@@ -41,11 +33,31 @@ const ActionSection = ({ organizationName, projectId, teamId, start, end, expend
   )
 }
 
-const NewReportPage = () => {
-  const { organizationName, projectId, teamId } = useParams()
-  const { start, end } = useQueryParams()
+const EditReportPage = () => {
+  const { organizationName, projectId, teamId, reportId } = useParams()
 
-  const [expenditure, setExpenditure] = useState(0)
+  const [{ start, end, expenditure }, setState] = useState({
+    start: null,
+    end: null,
+    expenditure: 0
+  })
+
+  const setExpenditure = useCallback((expenditure) => setState({ start, end, expenditure }), [start, end])
+
+  const {
+    isLoading: reportLoading, 
+    data: report
+  } = useQuery(['report', reportId], async () => await readReportById({ id: reportId }))
+
+  useEffect(() => {
+    if (!reportLoading && report) {
+      setState({
+        start: report.startDate.toISO(),
+        end: report.endDate.toISO(),
+        expenditure: report.expenditure
+      })
+    }
+  }, [reportLoading, report])
 
   const {
     isLoading: sprintsLoading,
@@ -61,7 +73,7 @@ const NewReportPage = () => {
     <div className='py-8 pr-6 flex min-h-full'>
       <div className='flex-grow flex flex-col'>
         <div>
-          <TitleSection title='Create New Report' {...{ start, end }} />
+          <TitleSection title='Edit New Report' {...{ start, end }} />
         </div>
         <div className='mb-6'>
           <SprintsSection {...{ timespanSprints }} />
@@ -71,7 +83,7 @@ const NewReportPage = () => {
         </div>
         <div className='flex-grow' />
         <div>
-          <ActionSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
+          <ActionSection {...{ reportId, expenditure }} />
         </div>
       </div>
       <MetricsSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
@@ -79,4 +91,4 @@ const NewReportPage = () => {
   )
 }
 
-export { NewReportPage }
+export { EditReportPage }

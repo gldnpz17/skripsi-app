@@ -3,7 +3,7 @@ using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.UseCases;
 using System.Runtime.CompilerServices;
-using static SkripsiAppBackend.UseCases.ReportUseCases;
+using static SkripsiAppBackend.UseCases.MetricUseCases;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -12,12 +12,12 @@ namespace SkripsiAppBackend.Controllers
     public class ReportsController : Controller
     {
         private readonly Database database;
-        private readonly ReportUseCases reportUseCases;
+        private readonly MetricUseCases metricUseCases;
 
-        public ReportsController(Database database, ReportUseCases reportUseCases)
+        public ReportsController(Database database, MetricUseCases metricUseCases)
         {
             this.database = database;
-            this.reportUseCases = reportUseCases;
+            this.metricUseCases = metricUseCases;
         }
 
         public struct Team
@@ -60,9 +60,9 @@ namespace SkripsiAppBackend.Controllers
             public DateTime EndDate { get; set; }
             public int Expenditure { get; set; }
 
-            public ReportUseCases.Report ToUseCaseModel()
+            public MetricUseCases.Report ToUseCaseModel()
             {
-                return new ReportUseCases.Report()
+                return new MetricUseCases.Report()
                 {
                     StartDate = StartDate,
                     EndDate = EndDate,
@@ -79,7 +79,7 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute]string teamId,
             [FromBody]CreateReportDto dto)
         {
-            await reportUseCases.CreateReport(organizationName, projectId, teamId, dto.ToUseCaseModel());
+            await metricUseCases.CreateReport(organizationName, projectId, teamId, dto.ToUseCaseModel());
 
             return Ok();
         }
@@ -87,6 +87,14 @@ namespace SkripsiAppBackend.Controllers
         public struct PatchReportDto
         {
             public int? Expenditure { get; set; }
+        }
+
+        [HttpGet("{reportId}")]
+        public async Task<Report> ReadReportById([FromRoute] int reportId)
+        {
+            var report = await database.Reports.ReadReport(reportId);
+
+            return Report.FromPersistenceModel(report);
         }
 
         [HttpPatch("{reportId}")]
@@ -107,34 +115,34 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            return await reportUseCases.ListExistingReports(organizationName, projectId, teamId);
+            return await metricUseCases.ListExistingReports(organizationName, projectId, teamId);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/available")]
         [HttpGet]
-        public async Task<List<ReportUseCases.AvailableReport>> ReadAllAvailableReports(
+        public async Task<List<MetricUseCases.AvailableReport>> ReadAllAvailableReports(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
-            [FromRoute] string teamId)
+            [FromRoute] string teamId)  
         {
-            return await reportUseCases.ListAvailableReports(organizationName, projectId, teamId);
+            return await metricUseCases.ListAvailableReports(organizationName, projectId, teamId);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/timespan-sprints")]
         [HttpGet]
-        public async Task<List<ReportUseCases.ReportSprint>> ReadTimespanSprints(
+        public async Task<List<MetricUseCases.ReportSprint>> ReadTimespanSprints(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId,
             [FromQuery] DateTime start,
             [FromQuery] DateTime end)
         {
-            return await reportUseCases.GetTimespanSprints(organizationName, projectId, teamId, start, end);
+            return await metricUseCases.GetTimespanSprints(organizationName, projectId, teamId, start, end);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/new-report-metrics")]
         [HttpGet]
-        public async Task<ReportUseCases.ReportMetrics> ReadNewReportMetrics(
+        public async Task<MetricUseCases.ReportMetrics> ReadNewReportMetrics(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId,
@@ -142,10 +150,10 @@ namespace SkripsiAppBackend.Controllers
             [FromQuery] DateTime end,
             [FromQuery] int expenditure)
         {
-            return await reportUseCases.CalculateReportMetrics(
+            return await metricUseCases.CalculateReportMetrics(
                 organizationName,
                 projectId,
-                teamId, new ReportUseCases.Report()
+                teamId, new MetricUseCases.Report()
                 {
                     StartDate = start,
                     EndDate = end,

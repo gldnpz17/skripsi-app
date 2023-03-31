@@ -9,13 +9,13 @@ using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.UseCases
 {
-    public class ReportUseCases
+    public class MetricUseCases
     {
         private readonly Database database;
         private readonly IAzureDevopsService azureDevopsService;
         private readonly TeamUseCases teamUseCases;
 
-        public ReportUseCases(
+        public MetricUseCases(
             Database database,
             IAzureDevopsService azureDevopsService,
             TeamUseCases teamUseCases)
@@ -149,6 +149,7 @@ namespace SkripsiAppBackend.UseCases
 
         public struct Report
         {
+            public int? Id { get; set; }
             public DateTime? StartDate { get; set; }
             public DateTime? EndDate { get; set; }
             public int? Expenditure { get; set; }
@@ -157,6 +158,7 @@ namespace SkripsiAppBackend.UseCases
             {
                 return new Report()
                 {
+                    Id = model.Id,
                     StartDate = model.StartDate,
                     EndDate = model.EndDate,
                     // TODO: Properly use long.
@@ -296,17 +298,21 @@ namespace SkripsiAppBackend.UseCases
 
             var reports = await database.Reports.ReadTeamReports(teamKey);
 
-            var reportMetrics = (await Task.WhenAll(reports.Select(async (report) =>
-            {
-                var basicMetrics = await CalculateReportBasicMetrics(organizationName, projectId, teamId, Report.FromModel(report));
-                var healthMetrics = CalculateHealthMetrics(basicMetrics.PlannedValue, basicMetrics.EarnedValue, basicMetrics.ActualCost);
-
-                return new SingleReportMetrics()
+            var reportMetrics = (await Task.WhenAll(reports
+                .OrderBy(report => report.StartDate)
+                .Reverse()
+                .Select(async (report) =>
                 {
-                    Report = Report.FromModel(report),
-                    HealthMetrics = healthMetrics
-                };
-            })))
+                    var basicMetrics = await CalculateReportBasicMetrics(organizationName, projectId, teamId, Report.FromModel(report));
+                    var healthMetrics = CalculateHealthMetrics(basicMetrics.PlannedValue, basicMetrics.EarnedValue, basicMetrics.ActualCost);
+
+                    return new SingleReportMetrics()
+                    {
+                        Report = Report.FromModel(report),
+                        HealthMetrics = healthMetrics
+                    };
+                })
+            ))
             .ToList();
 
             return reportMetrics;
@@ -373,9 +379,27 @@ namespace SkripsiAppBackend.UseCases
             );
         }
 
-        public async Task<MetricsCollection> CalculateMetricsOverview()
+        public async Task<MetricsCollection> CalculateTeamMetricsOverview(string organizationName, string projectId, string teamId)
         {
-            throw new NotImplementedException();
+            var teamKey = new TrackedTeamKey()
+            {
+                OrganizationName = organizationName,
+                ProjectId = projectId,
+                TeamId = teamId
+            };
+
+            var reports = (await database.Reports.ReadTeamReports(teamKey)).Select(report => Report.FromModel(report)).ToList();
+
+            var metrics = await CalculateCumulativeMetrics(
+                organizationName,
+                projectId,
+                teamId,
+                reports,
+                EstimateAtCompletionFormulas.Basic,
+                EstimateToCompletionFormulas.Derived
+            );
+
+            return metrics;
         }
 
         public async Task<List<ReportMetrics>> CalculateTimelineMetrics()
@@ -399,7 +423,6 @@ namespace SkripsiAppBackend.UseCases
 
             var reportDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)report.EndDate, workDays.Result);
             var teamDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
-            
 
             var plannedEffort = (reportDuration / teamDuration) * teamEffort.Result;
             
@@ -415,7 +438,7 @@ namespace SkripsiAppBackend.UseCases
             {
                 PlannedValue = plannedValue,
                 EarnedValue = earnedValue,
-                ActualCost = (int)report.Expenditure
+                ActualCost = report.Expenditure ?? 0
             };
         }
 
@@ -445,14 +468,15 @@ namespace SkripsiAppBackend.UseCases
                 (DateTime)report.EndDate
             ));
             var allCompletedEffortTasks = Task.WhenAll(completedEffortTasks);
+            var backlogWorkItemsTask = azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
 
-            await Task.WhenAll(allBasicMetricsTasks, team, allCompletedEffortTasks);
+            await Task.WhenAll(allBasicMetricsTasks, team, allCompletedEffortTasks, backlogWorkItemsTask);
 
             var cumulativeBasicMetrics = allBasicMetricsTasks.Result
                 .Aggregate(BasicMetrics.GetEmpty(), (current, cumulative) => cumulative + current);
 
             var healthMetrics = CalculateHealthMetrics(
-                cumulativeBasicMetrics.EarnedValue,
+                cumulativeBasicMetrics.PlannedValue,
                 cumulativeBasicMetrics.EarnedValue,
                 cumulativeBasicMetrics.ActualCost
             );
@@ -462,8 +486,11 @@ namespace SkripsiAppBackend.UseCases
                 throw new UserFacingException(UserFacingException.ErrorCodes.REPORT_INCOMPLETE_INFORMATION);
             }
 
-            var totalEffort = allCompletedEffortTasks.Result
-                .Aggregate(0d, (effort, total) => effort + total);
+            var completedEffort = allCompletedEffortTasks.Result
+                .Aggregate(0d, (total, effort) => total + effort);
+            var backlogEffort = backlogWorkItemsTask.Result
+                .Aggregate(0d, (total, workItem) => total + workItem.Effort);
+            var totalEffort = completedEffort + backlogEffort;
 
             if (!team.Result.CostPerEffort.HasValue)
             {

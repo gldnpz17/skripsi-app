@@ -6,7 +6,7 @@ import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
-import { readTeamDetails, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
+import { readTeamDetails, readTeamMetrics, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
 import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
@@ -69,7 +69,7 @@ const TeamsListSection = ({ setSelectedTeam }) => {
   )
 }
 
-const HealthComponentStatus = ({ title, severity, children }) => {
+const HealthComponentStatus = ({ title, content, severity, children }) => {
   const textColor = useMemo(() => {
     if (severity === undefined) {
       return 'text-white'
@@ -82,7 +82,7 @@ const HealthComponentStatus = ({ title, severity, children }) => {
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
       <div className='text-gray-400 text-sm font-bold mb-1'>{title}</div>
       <div className={`${textColor} text-xl`}>
-        {Format.status(severity)}
+        {content}
       </div>
       {children && (
         <hr className='my-3 border-gray-700' />
@@ -177,7 +177,12 @@ const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
         <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
       ))}
       {reportMetrics.map(reportMetric => (
-        <ReportItem key={reportMetric.report.startDate} {...{ reportMetric }} />
+        <ReportItem
+          key={reportMetric.report.startDate}
+          organizationName={selectedTeam.organization.name}
+          projectId={selectedTeam.project.id}
+          teamId={selectedTeam.id}
+          {...{ reportMetric }} />
       ))}
     </div>
   </div>
@@ -231,6 +236,15 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   const projectId = selectedTeam.project.id
   const projectName = selectedTeam.project.name
   const teamId = selectedTeam.id
+  const teamName = selectedTeam.name
+
+  const {
+    isLoading: metricsLoading,
+    data: metrics
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'metrics'],
+    async () => await readTeamMetrics({ organizationName, projectId, teamId })
+  )
 
   // const {
   //   data: {
@@ -294,52 +308,48 @@ const TeamDetailsSection = ({ selectedTeam }) => {
           </div>
         </div>
       </div>
-      {/* <div className='col-span-4'>
-        <HealthComponentStatus
-          title="Timeliness"
-          severity={timelinessSeverity}
-        >
-          {(estimatedCompletionDate && targetDateErrorInDays) && (
-            <HealthComponentInformation
-              Icon={CalendarCheck}
-              title='Estimated Completion Date'
-              content={`${estimatedCompletionDate.toFormat('dd MMM yyyy')} (${Format.relativeTime(targetDateErrorInDays, 'day')})`}
-            />
-          )}
-          {timelinessErrorCode && (
-            <HealthError errorCode={timelinessErrorCode} team={selectedTeam} />
-          )}
-        </HealthComponentStatus>
-      </div>
-      <div className='col-span-4'>
-        <HealthComponentStatus
-          title="Feature Completeness"
-          severity={featureSeverity}
-        >
-          {estimatedFeatureCompletion !== null && (
-            <HealthComponentInformation
-              Icon={CheckeredFlag}
-              title='Estimated Feature Completion'
-              content={`${estimatedFeatureCompletion * 100}%`}
-            />
-          )}
-          {featureErrorCode && (
-            <HealthError errorCode={featureErrorCode} team={selectedTeam} />
-          )}
-        </HealthComponentStatus>
-      </div>
-      <div className='col-span-4'>
-        <HealthComponentStatus
-          title="Budget"
-          severity='Healthy'
-        >
-          <HealthComponentInformation
-            Icon={CashStack}
-            title='Estimated Cost Variance'
-            content='Rp. 13.400.000,00'
-          />
-        </HealthComponentStatus>
-      </div> */}
+      {!metricsLoading && (
+        <>
+          <div className='col-span-4'>
+            <HealthComponentStatus
+              title="Estimate at Completion"
+              content={Format.currency(metrics.forecastMetrics.estimateAtCompletion)}
+            >
+              <HealthComponentInformation
+                Icon={CalendarCheck}
+                title='Estimate to Completion'
+                content={Format.currency(Math.max(0, metrics.forecastMetrics.estimateToCompletion))}
+              />
+            </HealthComponentStatus>
+          </div>
+          <div className='col-span-4'>
+            <HealthComponentStatus
+              title="Cost Performance Index"
+              content={Format.number(metrics.healthMetrics.costPerformanceIndex, 2)}
+              severity={Format.performanceIndex(metrics.healthMetrics.costPerformanceIndex).status}
+            >
+              <HealthComponentInformation
+                Icon={CheckeredFlag}
+                title='Cost Variance'
+                content={Format.currency(metrics.healthMetrics.costVariance)}
+              />
+            </HealthComponentStatus>
+          </div>
+          <div className='col-span-4'>
+            <HealthComponentStatus
+              title='Schedule Performance Index'
+              content={Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2)}
+              severity={Format.performanceIndex(metrics.healthMetrics.schedulePerformanceIndex).status}
+            >
+              <HealthComponentInformation
+                Icon={CashStack}
+                title='Schedule Variance'
+                content={Format.currency(metrics.healthMetrics.scheduleVariance)}
+              />
+            </HealthComponentStatus>
+          </div>
+        </>
+      )}
       <div className='col-span-12'>
         <HealthLineChart />
       </div>

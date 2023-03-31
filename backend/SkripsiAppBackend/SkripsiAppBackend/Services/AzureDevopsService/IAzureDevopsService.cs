@@ -76,6 +76,7 @@
             public double Priority { get; set; }
             public double Effort { get; set; }
             public double BusinessValue { get; set; }
+            public string IterationPath { get; set; }
         }
 
         public bool HasActiveProfile { get; }

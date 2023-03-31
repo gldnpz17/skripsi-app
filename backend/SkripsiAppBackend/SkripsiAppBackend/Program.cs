@@ -42,7 +42,7 @@ builder.Services.AddScoped<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddScoped<AccessTokenService>();
 
 builder.Services.AddScoped<TeamUseCases>();
-builder.Services.AddScoped<ReportUseCases>();
+builder.Services.AddScoped<MetricUseCases>();
 
 builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>),

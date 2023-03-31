@@ -3,10 +3,10 @@ import { Format } from "../../common/Format"
 import { Cash, Edit, Speedometer } from "../../common/icons"
 import { IconButton } from "./IconButton"
 
-const ReportItemContainer = ({ children, onClick }) => (
-  <div {...{ onClick }} className='flex relative items-center bg-dark-2 p-4 rounded-md border border-gray-700 shadow cursor-pointer hover:brightness-125 duration-150'>
+const ReportItemContainer = ({ children, onClick, href }) => (
+  <a {...{ onClick, href }} target='_blank' className='flex relative items-center bg-dark-2 p-4 rounded-md border border-gray-700 shadow cursor-pointer hover:brightness-125 duration-150'>
     {children}
-  </div>
+  </a>
 )
 
 const ReportStatus = ({ status }) => (
@@ -16,8 +16,12 @@ const ReportStatus = ({ status }) => (
 )
 
 const ReportItem = ({ 
+  organizationName,
+  projectId,
+  teamId,
   reportMetric: {
     report: {
+      id,
       startDate
     },
     healthMetrics: {
@@ -26,7 +30,7 @@ const ReportItem = ({
     }
   } 
 }) => (
-  <ReportItemContainer>
+  <ReportItemContainer href={`team/${organizationName}/${projectId}/${teamId}/reports/${id}/edit`}>
     <span className='mr-2'>{Format.month(startDate)}</span>
     <span className='flex-grow'></span>
     <Speedometer className='h-4 mr-2' />

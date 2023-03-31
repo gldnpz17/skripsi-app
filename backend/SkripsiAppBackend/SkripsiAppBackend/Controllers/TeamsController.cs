@@ -25,6 +25,7 @@ namespace SkripsiAppBackend.Controllers
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
         private readonly TeamUseCases teamUseCases;
+        private readonly MetricUseCases metricUseCases;
         private readonly Configuration configuration;
 
         public TeamsController(
@@ -32,12 +33,14 @@ namespace SkripsiAppBackend.Controllers
             Database database,
             IAuthorizationService authorizationService,
             TeamUseCases teamUseCases,
+            MetricUseCases metricUseCases,
             Configuration configuration)
         {
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
             this.teamUseCases = teamUseCases;
+            this.metricUseCases = metricUseCases;
             this.configuration = configuration;
         }
 
@@ -122,6 +125,16 @@ namespace SkripsiAppBackend.Controllers
         {
             public Team Team { get; set; }
         }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics")]
+        public async Task<ActionResult<MetricUseCases.MetricsCollection>> ReadTeamMetrics(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            return await metricUseCases.CalculateTeamMetricsOverview(organizationName, projectId, teamId);
+        }
+
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
         public async Task<ActionResult<TeamDetails>> ReadTeamDetailsById(
@@ -223,7 +236,7 @@ namespace SkripsiAppBackend.Controllers
         public struct UpdateTeamDto
         {
             public DateTime? Deadline { get; set; }
-            public int CostPerEffort { get; set; }
+            public int? CostPerEffort { get; set; }
         }
 
         [HttpPatch("{organizationName}/{projectId}/{teamId}")]

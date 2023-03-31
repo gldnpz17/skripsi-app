@@ -17,15 +17,21 @@ const SectionTitle = ({ children }) => (
   </div>
 )
 
-const ReportsSection = ({ reports, availableReports, selectedTeam }) => (
+const ReportsSection = ({ reportMetrics, availableReports, selectedTeam }) => (
   <div>
     <SectionTitle>Monthly Reports</SectionTitle>
     <div className='flex flex-col gap-4'>
       {availableReports?.map(report => (
         <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
       ))}
-      {reports.map(report => (
-        <ReportItem key={report.date} {...{ report }} />
+      {reportMetrics.map(reportMetric => (
+        <ReportItem
+          key={reportMetric.report.startDate}
+          organizationName={selectedTeam.organization.name}
+          projectId={selectedTeam.project.id}
+          teamId={selectedTeam.id}
+          {...{ reportMetric }} 
+        />
       ))}
     </div>
   </div>
@@ -78,7 +84,7 @@ const TeamDetailsPage = () => {
 
   const {
     isLoading: reportsLoading,
-    data: reports
+    data: reportMetrics
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
     async () => await readTeamReports({ organizationName, projectId, teamId })
@@ -92,12 +98,22 @@ const TeamDetailsPage = () => {
     async () => await readAvailableReports({ organizationName, projectId, teamId })
   )
 
+  const team = {
+    id: teamId,
+    organization: {
+      name: organizationName,
+    },
+    project: {
+      id: projectId
+    }
+  }
+
   return (
     <div className='pr-80 pt-8 h-full overflow-auto'>
       {!detailsLoading && !reportsLoading && !availableReportsLoading && (
         <>
           <GeneralSection team={details.team} />
-          <ReportsSection selectedTeam={{ organizationName, projectId, teamId }} {...{ availableReports, reports }} />
+          <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
         </>
       )}
     </div>

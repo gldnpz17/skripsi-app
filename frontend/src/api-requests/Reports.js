@@ -29,20 +29,22 @@ const mapTimespanSprint = ({
   accountedEndDate: DateTime.fromISO(accountedEndDate)
 })
 
+const mapReport = ({
+  startDate,
+  endDate,
+  ...report
+}) => ({
+  ...report,
+  startDate: DateTime.fromISO(startDate),
+  endDate: DateTime.fromISO(endDate)
+})
+
 const mapReportMetric = ({
-  report: {
-    startDate,
-    endDate,
-    ...report
-  },
+  report,
   ...reportMetric
 }) => ({
   ...reportMetric,
-  report: {
-    ...report,
-    startDate: DateTime.fromISO(startDate),
-    endDate: DateTime.fromISO(endDate)
-  }
+  report: mapReport(report)
 })
 
 const readTeamReports = async ({ organizationName, projectId, teamId }) => 
@@ -50,6 +52,12 @@ const readTeamReports = async ({ organizationName, projectId, teamId }) =>
 
 const createReport = async ({ organizationName, projectId, teamId, report: { startDate, endDate, expenditure } }) => 
   (await axios.post(`/api/teams/${organizationName}/${projectId}/${teamId}/reports`, { startDate, endDate, expenditure }))
+
+const readReportById = async ({ id }) =>
+  mapReport((await axios.get(`/api/reports/${id}`)).data)
+
+const updateReport = async ({ id, report: { expenditure } }) => 
+  await axios.patch(`/api/reports/${id}`, { expenditure })
 
 const readAvailableReports = async ({ organizationName, projectId, teamId }) =>
   ((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/reports/available`)).data)?.map(mapAvailableReport)
@@ -62,7 +70,9 @@ const readReportMetrics = async ({ organizationName, projectId, teamId, start, e
 
 export { 
   readTeamReports,
+  readReportById,
   createReport,
+  updateReport,
   readAvailableReports,
   readTimespanSprints,
   readReportMetrics
