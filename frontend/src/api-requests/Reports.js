@@ -1,5 +1,6 @@
 import axios from "axios";
 import { DateTime } from "luxon";
+import { mapReport } from "./mappers/Report";
 
 const mapAvailableReport = ({
   startDate,
@@ -27,16 +28,6 @@ const mapTimespanSprint = ({
   },
   accountedStartDate: DateTime.fromISO(accountedStartDate),
   accountedEndDate: DateTime.fromISO(accountedEndDate)
-})
-
-const mapReport = ({
-  startDate,
-  endDate,
-  ...report
-}) => ({
-  ...report,
-  startDate: DateTime.fromISO(startDate),
-  endDate: DateTime.fromISO(endDate)
 })
 
 const mapReportMetric = ({

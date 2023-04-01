@@ -179,6 +179,13 @@ namespace SkripsiAppBackend.UseCases
             public MetricsCollection DeltaMetrics { get; set; }
         }
 
+        public struct MetricsTimelineDataPoint
+        {
+            public Report Report { get; set; }
+            public BasicMetrics BasicMetrics { get; set; }
+            public HealthMetrics HealthMetrics { get; set; }
+        }
+
         public enum EstimateToCompletionFormulas
         {
             Derived,
@@ -402,9 +409,56 @@ namespace SkripsiAppBackend.UseCases
             return metrics;
         }
 
-        public async Task<List<ReportMetrics>> CalculateTimelineMetrics()
+        public async Task<List<MetricsTimelineDataPoint>> CalculateTimelineMetrics(
+            string organizationName, 
+            string projectId,
+            string teamId,
+            DateTime? startDate,
+            DateTime? endDate)
         {
-            throw new NotImplementedException();
+            var teamKey = new TrackedTeamKey()
+            {
+                OrganizationName = organizationName,
+                ProjectId = projectId,
+                TeamId = teamId
+            };
+
+            // TODO: Query only the necessary amount of reports.
+            var reports = (await database.Reports.ReadTeamReports(teamKey))
+                .Select(report => Report.FromModel(report))
+                .Where(report => report.StartDate.HasValue && report.EndDate.HasValue)
+                .Where(report =>
+                {
+                    var comparisonStartDate = startDate ?? DateTime.MinValue;
+                    var comparisonEndDate = endDate ?? DateTime.MaxValue;
+                    return report.StartDate >= comparisonStartDate && report.EndDate <= comparisonEndDate;
+                })
+                .OrderBy(report => report.StartDate)
+                .ToList();
+
+            var dataPoints = await Task.WhenAll(
+                reports.Select(async (dataPointReport) =>
+                {
+                    var pastReports = reports.Where(report => report.StartDate <= dataPointReport.StartDate).ToList();
+                    
+                    var metrics = await CalculateCumulativeMetrics(
+                        organizationName,
+                        projectId,
+                        teamId,
+                        pastReports,
+                        EstimateAtCompletionFormulas.Basic,
+                        EstimateToCompletionFormulas.Derived);
+
+                    return new MetricsTimelineDataPoint()
+                    {
+                        Report = dataPointReport,
+                        BasicMetrics = metrics.BasicMetrics,
+                        HealthMetrics = metrics.HealthMetrics
+                    };
+                })
+            );
+
+            return dataPoints.ToList();
         }
 
         public async Task<BasicMetrics> CalculateReportBasicMetrics(string organizationName, string projectId, string teamId, Report report)

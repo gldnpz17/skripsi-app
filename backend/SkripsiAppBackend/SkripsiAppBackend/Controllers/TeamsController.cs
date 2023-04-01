@@ -135,6 +135,16 @@ namespace SkripsiAppBackend.Controllers
             return await metricUseCases.CalculateTeamMetricsOverview(organizationName, projectId, teamId);
         }
 
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/timeline")]
+        public async Task<ActionResult<List<MetricUseCases.MetricsTimelineDataPoint>>> ReadTeamMetricsTimeline(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate)
+        {
+            return await metricUseCases.CalculateTimelineMetrics(organizationName, projectId, teamId, startDate, endDate);
+        }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
         public async Task<ActionResult<TeamDetails>> ReadTeamDetailsById(

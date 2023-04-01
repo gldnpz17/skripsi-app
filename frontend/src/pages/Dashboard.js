@@ -6,11 +6,12 @@ import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
-import { readTeamDetails, readTeamMetrics, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
+import { readTeamDetails, readTeamMetrics, readTeamMetricsTimeline, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
 import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
+import { DateTime } from "luxon"
 
 const ExternalLinkWrapper = ({ to, children, ...props }) => {
   const isAbsolute = /https:\/\//g.test(to)
@@ -112,57 +113,112 @@ const DATASET = {
 
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, Title, Tooltip, Legend)
 
-const HealthLineChart = () => (
-  <div className='h-72 flex flex-col w-full rounded-md bg-dark-2 p-4 border border-gray-700'>
-    <div className='w-full mb-4 flex items-center'>
-      <div className='text-gray-400 text-sm font-bold flex-grow'>Project Health History</div>
-      <IconButton onClick={() => alert('Hello')}>
-        <Configuration className='h-5' />
-      </IconButton>
-    </div>
-    <div className='flex-grow'>
-      <Line
-        style={{
-          minHeight: "100%",
-          height: "0",
-          width: "100%"
-        }}
-        options={{
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: null,
-          },
-          scales: {
-            x: {
-              ticks: {
-                color: 'white'
-              },
-              grid: {
-                display: false
-              }
+const MetricButton = ({ children, onClick, active }) => (
+  <button {...{ onClick }} className={`px-3 py-0 text-sm border duration-150 border-secondary-dark whitespace-nowrap rounded-md text-white ${active && 'bg-secondary-dark border text-black shadow-sm shadow-secondary-dark'}`}>
+    {children}
+  </button>
+)
+
+const HealthLineChart = ({ dataPoints }) => {
+  const metrics = {
+    PV: {
+      label: 'Planned Value',
+      map: (dataPoint) => dataPoint.basicMetrics.plannedValue
+    },
+    EV: {
+      label: 'Earned Value',
+      map: (dataPoint) => dataPoint.basicMetrics.earnedValue
+    },
+    AC: {
+      label: 'Actual Cost',
+      map: (dataPoint) => dataPoint.basicMetrics.actualCost
+    },
+    CPI: {
+      label: 'Cost Performance Index',
+      map: (dataPoint) => dataPoint.healthMetrics.costPerformanceIndex
+    },
+    CV: {
+      label: 'Cost Variance',
+      map: (dataPoint) => dataPoint.healthMetrics.costVariance
+    },
+    SPI: {
+      label: 'Schedule Performance Index',
+      map: (dataPoint) => dataPoint.healthMetrics.schedulePerformanceIndex
+    },
+    SV: {
+      label: 'Schedule Variance',
+      map: (dataPoint) => dataPoint.healthMetrics.scheduleVariance
+    },
+  }
+
+  const [metric, setMetric] = useState(metrics.PV)
+
+  const labels = useMemo(() => dataPoints.map(dataPoint => dataPoint.report.startDate.toFormat('MMM yyyy')), [dataPoints])
+
+  const dataset = useMemo(() => ({
+    label: metric.label,
+    data: dataPoints.map(metric.map),
+    borderColor: 'rgb(111, 134, 191)',
+    tension: 0.3
+  }), [metric, dataPoints])
+
+  return (
+    <div className='h-96 flex flex-col w-full rounded-md bg-dark-2 p-4 border border-gray-700'>
+      <div className='w-full mb-4 flex items-center'>
+        <div className='text-gray-400 text-sm font-bold flex-grow'>Project Health History</div>
+        <IconButton onClick={() => alert('Hello')}>
+          <Configuration className='h-5' />
+        </IconButton>
+      </div>
+      <div className='flex-grow mb-3'>
+        <Line
+          style={{
+            minHeight: "100%",
+            height: "0",
+            width: "100%"
+          }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: null,
             },
-            y: {
-              display: false,
-              ticks: {
-                color: 'white'
+            scales: {
+              x: {
+                ticks: {
+                  color: 'white'
+                },
+                grid: {
+                  display: false
+                }
               },
-              min: 0,
-              max: 1,
-              grid: {
-                display: false
+              y: {
+                display: false,
+                ticks: {
+                  color: 'white'
+                },
+                grid: {
+                  display: false
+                }
               }
             }
-          }
-        }}
-        data={{
-          labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-          datasets: [DATASET]
-        }}
-      />
+          }}
+          data={{
+            labels,
+            datasets: [dataset]
+          }}
+        />
+      </div>
+      <div className='flex gap-3 flex-wrap mb-4'>
+        {Object.keys(metrics).map(key => (
+          <MetricButton {...{ key }} active={metric.label === metrics[key].label} onClick={() => setMetric(metrics[key])}>
+            {metrics[key].label}
+          </MetricButton>
+        ))}
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
   <div>
@@ -246,28 +302,13 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     async () => await readTeamMetrics({ organizationName, projectId, teamId })
   )
 
-  // const {
-  //   data: {
-  //     timelinessMetric: {
-  //       errorCode: timelinessErrorCode,
-  //       estimatedCompletionDate,
-  //       severity: timelinessSeverity,
-  //       targetDateErrorInDays
-  //     },
-  //     featureMetric: {
-  //       errorCode: featureErrorCode,
-  //       severity: featureSeverity,
-  //       estimatedFeatureCompletion
-  //     }
-  //   } = {
-  //     timelinessMetric: { },
-  //     featureMetric: { }
-  //   },
-  //   isLoading: teamsLoading
-  // } = useQuery(
-  //   ['teams', organizationName, projectId, teamId],
-  //   async () => await readTeamDetails({ organizationName, projectId, teamId })
-  // )
+  const {
+    isLoading: metricsTimelineLoading,
+    data: metricsTimeline
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'metrics', 'timeline'],
+    async () => await readTeamMetricsTimeline({ organizationName, projectId, teamId })
+  )
 
   const {
     isLoading: reportsLoading,
@@ -285,7 +326,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     async () => await readAvailableReports({ organizationName, projectId, teamId })
   )
 
-  if (reportsLoading || availableReportsLoading) return <></>
+  if (reportsLoading || availableReportsLoading || metricsTimelineLoading) return <></>
 
   return (
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
@@ -351,7 +392,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
         </>
       )}
       <div className='col-span-12'>
-        <HealthLineChart />
+        <HealthLineChart dataPoints={metricsTimeline} />
       </div>
       <div className='col-span-12 mb-8'>
         <ReportsList {...{ reportMetrics, availableReports, selectedTeam }} />
