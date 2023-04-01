@@ -77,6 +77,28 @@
             public double Effort { get; set; }
             public double BusinessValue { get; set; }
             public string IterationPath { get; set; }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is WorkItem item &&
+                       Id == item.Id &&
+                       Title == item.Title &&
+                       State == item.State &&
+                       Priority == item.Priority &&
+                       Effort == item.Effort &&
+                       BusinessValue == item.BusinessValue &&
+                       IterationPath == item.IterationPath;
+            }
+
+            public static bool operator ==(WorkItem left, WorkItem right)
+            {
+                return left.Equals(right);
+            }
+
+            public static bool operator !=(WorkItem left, WorkItem right)
+            {
+                return !(left == right);
+            }
         }
 
         public bool HasActiveProfile { get; }

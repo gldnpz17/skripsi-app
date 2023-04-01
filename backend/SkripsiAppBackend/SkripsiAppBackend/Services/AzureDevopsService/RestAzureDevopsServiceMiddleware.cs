@@ -76,7 +76,13 @@ namespace SkripsiAppBackend.Services.AzureDevopsService
             if (type == AzureDevopsServiceType.REST)
             {
                 services.AddScoped<RestAzureDevopsService>();
-                services.AddScoped<IAzureDevopsService>(service => service.GetService<RestAzureDevopsService>());
+                services.AddScoped<IAzureDevopsService>(service =>
+                {
+                    var azureDevops = service.GetService<RestAzureDevopsService>();
+                    var cache = service.GetService<InMemoryUniversalCachingService>();
+
+                    return new AzureDevopsCachingProxy(azureDevops, cache);
+                });
             }
             else
             {

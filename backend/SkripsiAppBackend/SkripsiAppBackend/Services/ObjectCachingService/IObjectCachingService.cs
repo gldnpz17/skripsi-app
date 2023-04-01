@@ -6,14 +6,6 @@
         public bool Exists(string key);
         public TObject Get(string key);
         public void Delete(string key);
-        public async Task<TObject> GetCache(string key, Func<Task<TObject>> getData)
-        {
-            if (!Exists(key))
-            {
-                Set(key, await getData());
-            }
-
-            return Get(key);
-        }
+        public Task<TObject> GetCache(string key, Func<Task<TObject>> getData);
     }
 }

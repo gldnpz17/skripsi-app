@@ -1,10 +1,12 @@
-﻿namespace SkripsiAppBackend.Services.ObjectCachingService
+﻿using System.Collections.Concurrent;
+
+namespace SkripsiAppBackend.Services.ObjectCachingService
 {
     public class InMemoryObjectCachingService<TObject> : IObjectCachingService<TObject>
     {
         private readonly TimeSpan lifespan;
-        private readonly Dictionary<string, TObject> keyData = new();
-        private readonly Dictionary<string, Task> keyExpiryTasks = new();
+        private readonly ConcurrentDictionary<string, TObject> keyData = new();
+        private readonly ConcurrentDictionary<string, DateTime> expiryTime = new();
 
         public InMemoryObjectCachingService(TimeSpan lifespan)
         {
@@ -14,16 +16,7 @@
         public void Set(string key, TObject data)
         {
             keyData[key] = data;
-
-            if (!keyExpiryTasks.ContainsKey(key))
-            {
-                keyExpiryTasks[key] = Task.Run(async () =>
-                {
-                    await Task.Delay(lifespan);
-                    keyExpiryTasks.Remove(key);
-                    Delete(key);
-                });
-            }
+            expiryTime[key] = DateTime.Now + lifespan;
         }
 
         public bool Exists(string key)
@@ -38,7 +31,29 @@
 
         public void Delete(string key)
         {
-            keyData.Remove(key);
+            keyData.Remove(key, out _);
+            expiryTime.Remove(key, out _);
+        }
+
+        public async Task<TObject> GetCache(string key, Func<Task<TObject>> getData)
+        {
+            if (!Exists(key))
+            {
+                await RefreshData();
+            }
+
+            if (expiryTime.ContainsKey(key) && DateTime.Now > expiryTime[key])
+            {
+                _ = RefreshData();
+            }
+
+            return Get(key);
+
+            async Task RefreshData()
+            {
+                var data = await getData();
+                Set(key, data);
+            }
         }
     }
 
@@ -50,7 +65,7 @@
             {
                 var serviceType = typeof(IObjectCachingService<>).MakeGenericType(type);
 
-                services.AddScoped(serviceType, (service) => GetCachingService(type));
+                services.AddSingleton(serviceType, (service) => GetCachingService(type));
             }
 
             object GetCachingService(Type type)
