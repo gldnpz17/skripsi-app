@@ -44,7 +44,7 @@ const trackTeam = async ({ organizationName, projectId, teamId }) => await axios
 
 const readTeamDetails = async ({ organizationName, projectId, teamId }) => mapTeamDetails((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}`)).data)
 
-const updateTeam = async ({ organizationName, projectId, teamId, deadline, costPerEffort }) => await axios.patch(`/api/teams/${organizationName}/${projectId}/${teamId}`, { deadline, costPerEffort })
+const updateTeam = async ({ organizationName, projectId, teamId, deadline, costPerEffort, eacFormula, etcFormula }) => await axios.patch(`/api/teams/${organizationName}/${projectId}/${teamId}`, { deadline, costPerEffort, eacFormula, etcFormula })
 
 export {
   readUntrackedTeams,

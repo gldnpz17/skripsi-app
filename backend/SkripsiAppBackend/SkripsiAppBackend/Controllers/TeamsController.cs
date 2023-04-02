@@ -49,8 +49,9 @@ namespace SkripsiAppBackend.Controllers
             public string Id { get; set; }
             public string Name { get; set; }
             public DateTime? Deadline { get; set; }
-
             public int? CostPerEffort { get; set; }
+            public string EacFormula { get; set; }
+            public string EtcFormula { get; set; }
             public IAzureDevopsService.Organization Organization { get; set; }
             public IAzureDevopsService.Project Project { get; set; }
 
@@ -182,6 +183,8 @@ namespace SkripsiAppBackend.Controllers
                     Project = project,
                     Deadline = trackedTeam.Deadline,
                     CostPerEffort = trackedTeam.CostPerEffort,
+                    EacFormula = trackedTeam.EacFormula,
+                    EtcFormula = trackedTeam.EtcFormula,
                     Organization = new IAzureDevopsService.Organization()
                     {
                         Name = organizationName
@@ -247,6 +250,8 @@ namespace SkripsiAppBackend.Controllers
         {
             public DateTime? Deadline { get; set; }
             public int? CostPerEffort { get; set; }
+            public string? EacFormula { get; set; }
+            public string? EtcFormula { get; set; }
         }
 
         [HttpPatch("{organizationName}/{projectId}/{teamId}")]
@@ -261,7 +266,9 @@ namespace SkripsiAppBackend.Controllers
                                                    projectId,
                                                    teamId,
                                                    dto.Deadline,
-                                                   dto.CostPerEffort);
+                                                   dto.CostPerEffort,
+                                                   dto.EacFormula,
+                                                   dto.EtcFormula);
 
             return Ok();
         }

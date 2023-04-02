@@ -62,6 +62,8 @@ SELECT tracked_teams.* FROM tracked_teams
             return result;
         }
 
+        public Task<TrackedTeam> ReadByKey(TrackedTeamKey key) => ReadByKey(key.OrganizationName, key.ProjectId, key.TeamId);
+
         public async Task<TrackedTeam> ReadByKey(string organizationName, string projectId, string teamId)
         {
             var sql = @"
@@ -127,12 +129,21 @@ WHERE
             await connection.ExecuteAsync(sql, args);
         }
 
-        public async Task UpdateTeam(string organizationName, string projectId, string teamId, DateTime? deadline, int? costPerEffort)
+        public async Task UpdateTeam(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime? deadline,
+            int? costPerEffort,
+            string? eacFormula,
+            string? etcFormula)
         {
             var sql = @$"
 UPDATE tracked_teams SET
     deadline = COALESCE(@Deadline, deadline),
-    cost_per_effort = COALESCE(@CostPerEffort, cost_per_effort)
+    cost_per_effort = COALESCE(@CostPerEffort, cost_per_effort),
+    eac_formula = COALESCE(@EacFormula, eac_formula),
+    etc_formula = COALESCE(@EtcFormula, etc_formula)
 WHERE
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
@@ -147,7 +158,9 @@ WHERE
                 ProjectId = projectId,
                 TeamId = teamId,
                 Deadline = deadline,
-                CostPerEffort = costPerEffort
+                CostPerEffort = costPerEffort,
+                EacFormula = eacFormula,
+                EtcFormula = etcFormula
             };
 
             await connection.ExecuteAsync(sql, args);

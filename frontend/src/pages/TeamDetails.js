@@ -6,7 +6,7 @@ import { Edit } from "../common/icons"
 import { useParams } from "react-router-dom"
 import { readTeamDetails, updateTeam } from "../api-requests/Teams"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
-import { useCallback } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import { DateTime } from "luxon"
 import { FormInput } from "../Components/Common/FormInput"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
@@ -37,19 +37,70 @@ const ReportsSection = ({ reportMetrics, availableReports, selectedTeam }) => (
   </div>
 )
 
+const RadioGroup = ({ label, options=[], value, onChange }) => {
+  const getInputProps = useCallback((inputValue) => ({
+    onChange: (e) => {
+      const checked = e.target.checked
+      if (checked) onChange(inputValue)
+    },
+    checked: value === inputValue
+  }), [onChange, value])
+
+  return (
+    <div className='flex w-full'>
+      <div className='flex-grow'>{label}</div>
+      <fieldset className='w-48'>
+          {options.map(({ value, label }) => (
+            <div key={value} >
+              <label className='flex items-center'>
+                <input type='radio' className='mr-1' {...getInputProps(value)} />
+                {label}
+              </label>
+            </div>
+          ))}
+      </fieldset>
+    </div>
+  )
+}
+
 const GeneralSection = ({ team }) => {
   const { 
     mutateAsync: updateTeamAsync,
     isLoading: updateTeamLoading
   } = useSimpleMutation(updateTeam, [['teams']])
 
+  const reducer = (state, { field, data }) => {
+    const newState = {...state}
+
+    if (field === 'eac' && data === 'Derived' && state.etc === 'Derived') {
+      newState.etc = 'Typical'
+    }
+    if (field === 'etc' && data === 'Derived' && state.eac === 'Derived') {
+      newState.eac = 'Basic'
+    }
+    newState[field] = data
+    return newState
+  }
+  const [{ etc, eac }, dispatch] = useReducer(reducer, { eac: team.eacFormula, etc: team.etcFormula })
+
+  useEffect(() => {
+    updateTeamAsync(() => ({
+      organizationName: team.organization.name,
+      projectId: team.project.id,
+      teamId: team.id,
+      eacFormula: eac,
+      etcFormula: etc
+    }))()
+  }, [eac, etc])
+
   return (
     <div className='mb-10'>
       <SectionTitle>General</SectionTitle>
-      <div className='flex flex-col gap-4'>
+      <div className='flex flex-col gap-4 max-w-md'>
         <FormInput
           label='Team project deadline'
           type='date'
+          stretch
           value={team.deadline?.toISODate()}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
@@ -61,6 +112,7 @@ const GeneralSection = ({ team }) => {
         <FormInput
           label='Cost per Effort'
           type='number'
+          stretch
           value={team.costPerEffort}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
@@ -68,6 +120,27 @@ const GeneralSection = ({ team }) => {
             teamId: team.id,
             costPerEffort: Number.parseInt(target.value)
           }))}
+        />
+        <RadioGroup
+          label='EAC Formula'
+          options={[
+            { value: 'Derived', label: 'Derived' },
+            { value: 'Basic', label: 'Basic' },
+            { value: 'Typical', label: 'Typical' },
+            { value: 'Atypical', label: 'Atypical' }
+          ]}
+          value={eac}
+          onChange={(data) => dispatch({ field: 'eac', data })}
+        />
+        <RadioGroup
+          label='ETC Formula'
+          options={[
+            { value: 'Derived', label: 'Derived' },
+            { value: 'Typical', label: 'Typical' },
+            { value: 'Atypical', label: 'Atypical' }
+          ]}
+          value={etc}
+          onChange={(data) => dispatch({ field: 'etc', data })}
         />
       </div>
     </div>

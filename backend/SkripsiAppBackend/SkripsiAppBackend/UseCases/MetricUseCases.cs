@@ -188,6 +188,7 @@ namespace SkripsiAppBackend.UseCases
 
         public enum EstimateToCompletionFormulas
         {
+            Unknown,
             Derived,
             Atypical,
             Typical
@@ -195,10 +196,31 @@ namespace SkripsiAppBackend.UseCases
 
         public enum EstimateAtCompletionFormulas
         {
+            Unknown,
             Derived,
             Basic,
             Atypical,
             Typical
+        }
+
+        public static class FormulaHelpers
+        {
+            public static TEnum? FromString<TEnum>(string stringValue) where TEnum : Enum
+            {
+                var values = Enum.GetValues(typeof(TEnum))
+                    .Cast<TEnum>()
+                    .ToList();
+
+                foreach (var value in values)
+                {
+                    if (value.ToString() == stringValue)
+                    {
+                        return value;
+                    }
+                }
+
+                return default;
+            }
         }
 
         public async Task<List<ReportSprint>> GetTimespanSprints(string organizationName, string projectId, string teamId, DateTime startDate, DateTime endDate)
@@ -331,32 +353,34 @@ namespace SkripsiAppBackend.UseCases
             string teamId,
             Report createdReport)
         {
-            var previousReports = (await database.Reports.ReadTeamReports(new TrackedTeamKey()
-                {
-                    OrganizationName = organizationName,
-                    ProjectId = projectId,
-                    TeamId = teamId,
-                }))
+            var teamKey = new TrackedTeamKey()
+            {
+                OrganizationName = organizationName,
+                ProjectId = projectId,
+                TeamId = teamId,
+            };
+
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
+            var previousReports = (await database.Reports.ReadTeamReports(teamKey))
                 .Where(report => report.EndDate < createdReport.StartDate)
                 .Select(report => Report.FromModel(report))
                 .ToList();
-
 
             var beforeMetrics = CalculateCumulativeMetrics(
                 organizationName,
                 projectId,
                 teamId,
                 previousReports,
-                EstimateAtCompletionFormulas.Basic,
-                EstimateToCompletionFormulas.Derived);
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula),
+                FormulaHelpers.FromString<EstimateToCompletionFormulas>(team.EtcFormula));
 
             var afterMetrics = CalculateCumulativeMetrics(
                 organizationName,
                 projectId,
                 teamId,
                 previousReports.Append(createdReport).ToList(),
-                EstimateAtCompletionFormulas.Basic,
-                EstimateToCompletionFormulas.Derived);
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula),
+                FormulaHelpers.FromString<EstimateToCompletionFormulas>(team.EtcFormula));
 
             await Task.WhenAll(beforeMetrics, afterMetrics);
 
@@ -395,6 +419,7 @@ namespace SkripsiAppBackend.UseCases
                 TeamId = teamId
             };
 
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
             var reports = (await database.Reports.ReadTeamReports(teamKey)).Select(report => Report.FromModel(report)).ToList();
 
             var metrics = await CalculateCumulativeMetrics(
@@ -402,8 +427,8 @@ namespace SkripsiAppBackend.UseCases
                 projectId,
                 teamId,
                 reports,
-                EstimateAtCompletionFormulas.Basic,
-                EstimateToCompletionFormulas.Derived
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula),
+                FormulaHelpers.FromString<EstimateToCompletionFormulas>(team.EtcFormula)
             );
 
             return metrics;
@@ -422,6 +447,8 @@ namespace SkripsiAppBackend.UseCases
                 ProjectId = projectId,
                 TeamId = teamId
             };
+
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
 
             // TODO: Query only the necessary amount of reports.
             var reports = (await database.Reports.ReadTeamReports(teamKey))
@@ -446,8 +473,8 @@ namespace SkripsiAppBackend.UseCases
                         projectId,
                         teamId,
                         pastReports,
-                        EstimateAtCompletionFormulas.Basic,
-                        EstimateToCompletionFormulas.Derived);
+                        FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula),
+                        FormulaHelpers.FromString<EstimateToCompletionFormulas>(team.EtcFormula));
 
                     return new MetricsTimelineDataPoint()
                     {
