@@ -104,13 +104,6 @@ const ProgressBar = ({ progress, className }) => (
   </div>
 )
 
-const DATASET = {
-  label: 'Project Health',
-  data: [0.2, 0.6, 0.3, 0.2, 0.5, 0.9],
-  borderColor: 'rgb(111, 134, 191)',
-  tension: 0.3
-}
-
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 const MetricButton = ({ children, onClick, active }) => (
@@ -332,7 +325,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
       <div className='flex items-center col-span-12'>
         <div className='flex-grow'>
-          <h1 className='text-2xl mb-1'>Team Name</h1>
+          <h1 className='text-2xl mb-1'>{teamName} - {projectName}</h1>
           <ExternalLink
             to={`/teams/${organizationName}/${projectId}/${teamId}`}
           >
@@ -340,11 +333,11 @@ const TeamDetailsSection = ({ selectedTeam }) => {
           </ExternalLink>
         </div>
         <div>
-          <div className='text-sm text-gray-400 text-right mb-1'>Overall Project Health</div>
+          <div className='text-sm text-gray-400 text-right mb-1'>Budget Usage</div>
           <div className='flex gap-2 items-center'>
-            <ProgressBar progress={0.8} className='w-32' />
+            <ProgressBar progress={metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion} className='w-32' />
             <span>
-              80%
+              {Format.number(metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion * 100, 0)} %
             </span>
           </div>
         </div>
@@ -357,7 +350,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
               content={Format.currency(metrics.forecastMetrics.estimateAtCompletion)}
             >
               <HealthComponentInformation
-                Icon={CalendarCheck}
+                Icon={CashStack}
                 title='Estimate to Completion'
                 content={Format.currency(Math.max(0, metrics.forecastMetrics.estimateToCompletion))}
               />
@@ -366,11 +359,11 @@ const TeamDetailsSection = ({ selectedTeam }) => {
           <div className='col-span-4'>
             <HealthComponentStatus
               title="Cost Performance Index"
-              content={Format.number(metrics.healthMetrics.costPerformanceIndex, 2)}
+              content={`${Format.number(metrics.healthMetrics.costPerformanceIndex, 2)} (${metrics.healthMetrics.costPerformanceIndex < 1 ? 'Over Budget' : 'Under Budget'})`}
               severity={Format.performanceIndex(metrics.healthMetrics.costPerformanceIndex).status}
             >
               <HealthComponentInformation
-                Icon={CheckeredFlag}
+                Icon={CashStack}
                 title='Cost Variance'
                 content={Format.currency(metrics.healthMetrics.costVariance)}
               />
@@ -379,11 +372,11 @@ const TeamDetailsSection = ({ selectedTeam }) => {
           <div className='col-span-4'>
             <HealthComponentStatus
               title='Schedule Performance Index'
-              content={Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2)}
+              content={`${Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2)} (${Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2) < 1 ? 'Behind Schedule' : 'Ahead of schedule'})`}
               severity={Format.performanceIndex(metrics.healthMetrics.schedulePerformanceIndex).status}
             >
               <HealthComponentInformation
-                Icon={CashStack}
+                Icon={CheckeredFlag}
                 title='Schedule Variance'
                 content={Format.currency(metrics.healthMetrics.scheduleVariance)}
               />
