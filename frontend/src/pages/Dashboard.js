@@ -34,9 +34,10 @@ const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
         <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
           {name}
         </span>
-        <span className={`${Format.statusColor('Healthy', 'text-')}`}>
+        {/* TODO: Implement health status icons. */}
+        {/* <span className={`${Format.statusColor('Healthy', 'text-')}`}>
           {Format.status('Healthy')}
-        </span>
+        </span> */}
       </span>
     </div>
   )
@@ -247,8 +248,8 @@ const HealthComponentInformation = ({ title, Icon, content }) => (
   </div>
 )
 
-const HealthComponentError = ({ reason, helpLink, helpText }) => (
-  <div>
+const ErrorMessage = ({ reason, helpLink, helpText }) => (
+  <div className='flex flex-col items-center'>
     <div className='text-orange-300 flex gap-1 items-center'>
       <Warning className='h-4' />
       {reason}
@@ -261,24 +262,60 @@ const HealthComponentError = ({ reason, helpLink, helpText }) => (
   </div>
 )
 
-const HealthError = ({ errorCode, team }) => {
-  const errorProps = {
-    'TEAM_NO_DEADLINE': {
-      reason: 'Deadline not set',
-      helpText: 'Set deadline',
-      helpLink: `/teams/${team.organization.name}/${team.project.id}/${team.id}`
-    },
-    'TEAM_NO_SPRINTS': {
-      reason: 'No sprints',
-      helpText: 'Add sprint',
-      helpLink: `https://dev.azure.com/${team.organization.name}/${encodeURI(team.project.name)}`
+const ErrorPlaceholder = ({ className, errorCode, ...props }) => {
+  const errorProps = useMemo(() => {
+    const errors = {
+      'TEAM_NO_DEADLINE': () => ({
+        reason: 'Deadline not set',
+        helpText: 'Set deadline',
+        helpLink: `/teams/${props.team.organization.name}/${props.team.project.id}/${props.team.id}`
+      }),
+      'TEAM_NO_SPRINTS': () => ({
+        reason: 'No sprints',
+        helpText: 'Add sprint',
+        helpLink: `https://dev.azure.com/${props.team.organization.name}/${encodeURI(props.team.project.name)}`
+      }),
+      'TEAM_NO_EFFORT_COST': () => ({
+        reason: 'Cost per effort not set',
+        helpText: 'Set cost per effort',
+        helpLink: `/teams/${props.team.organization.name}/${props.team.project.id}/${props.team.id}`
+      })
     }
-  }
+
+    return errors[errorCode]()
+  }, [errorCode, props])
 
   return (
-    <HealthComponentError {...errorProps[errorCode]} />
+    <div className={`bg-dark-2 p-4 border border-gray-700 flex items-center justify-center rounded-md ${className}`}>
+      <ErrorMessage {...errorProps} />
+    </div>
   )
 }
+
+const Skeleton = ({ className }) => (
+  <div className={`animate-pulse rounded-md bg-dark-2 ${className}`}>
+  </div>
+)
+
+const TeamDetailsSkeleton = () => (
+  <div className='grid grid-cols-12 gap-x-4 gap-y-6 overflow-hidden'>
+    <Skeleton className='col-span-5 h-14' />
+    <div className='col-span-4' />
+    <Skeleton className='col-span-3 h-14' />
+
+    <Skeleton className='col-span-4 h-28' />
+    <Skeleton className='col-span-4 h-28' />
+    <Skeleton className='col-span-4 h-28' />
+
+    <Skeleton className='col-span-12 h-80' />
+
+    <div className='flex flex-col gap-3 col-span-12'>
+      <Skeleton className='col-span-12 h-10' />
+      <Skeleton className='col-span-12 h-10' />
+      <Skeleton className='col-span-12 h-10' />
+    </div>
+  </div>
+)
 
 const TeamDetailsSection = ({ selectedTeam }) => {
   const organizationName = selectedTeam.organization.name
@@ -289,7 +326,8 @@ const TeamDetailsSection = ({ selectedTeam }) => {
 
   const {
     isLoading: metricsLoading,
-    data: metrics
+    data: metrics,
+    error: metricsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'metrics'],
     async () => await readTeamMetrics({ organizationName, projectId, teamId })
@@ -304,8 +342,9 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   )
 
   const {
-    isLoading: reportsLoading,
-    data: reportMetrics
+    isLoading: reportMetricsLoading,
+    data: reportMetrics,
+    error: reportMetricsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
     async () => await readTeamReports({ organizationName, projectId, teamId })
@@ -313,13 +352,22 @@ const TeamDetailsSection = ({ selectedTeam }) => {
 
   const {
     isLoading: availableReportsLoading,
-    data: availableReports
+    data: availableReports,
+    error: availableReportsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'available-reports'],
     async () => await readAvailableReports({ organizationName, projectId, teamId })
   )
 
-  if (reportsLoading || availableReportsLoading || metricsTimelineLoading) return <></>
+  const reportsError = useMemo(() => {
+    return reportMetricsError ?? availableReportsError ?? null
+  }, [reportMetricsError, availableReportsError])
+
+  if (metricsLoading || 
+    reportMetricsLoading || 
+    availableReportsLoading || 
+    metricsTimelineLoading
+  ) return <TeamDetailsSkeleton />
 
   return (
     <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
@@ -332,17 +380,26 @@ const TeamDetailsSection = ({ selectedTeam }) => {
             Team Settings
           </ExternalLink>
         </div>
-        <div>
-          <div className='text-sm text-gray-400 text-right mb-1'>Budget Usage</div>
-          <div className='flex gap-2 items-center'>
-            <ProgressBar progress={metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion} className='w-32' />
-            <span>
-              {Format.number(metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion * 100, 0)} %
-            </span>
+        {!metricsError && (
+          <div>
+            <div className='text-sm text-gray-400 text-right mb-1'>Budget Usage</div>
+            <div className='flex gap-2 items-center'>
+              <ProgressBar progress={metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion} className='w-32' />
+              <span>
+                {Format.number(metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion * 100, 0)} %
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
-      {!metricsLoading && (
+      {metricsError && (
+        <ErrorPlaceholder
+          className='col-span-12'
+          errorCode={metricsError.response.data}
+          team={selectedTeam}
+        />
+      )}
+      {!metricsError && (
         <>
           <div className='col-span-4'>
             <HealthComponentStatus
@@ -387,9 +444,18 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-12'>
         <HealthLineChart dataPoints={metricsTimeline} />
       </div>
-      <div className='col-span-12 mb-8'>
-        <ReportsList {...{ reportMetrics, availableReports, selectedTeam }} />
-      </div>
+      {reportsError && (
+        <ErrorPlaceholder
+          className='col-span-12 mb-8'
+          errorCode={reportsError.response.data}
+          team={selectedTeam}
+        />
+      )}
+      {!reportsError && (
+        <div className='col-span-12 mb-8'>
+          <ReportsList {...{ reportMetrics, availableReports, selectedTeam }} />
+        </div>
+      )}
     </div>
   )
 }

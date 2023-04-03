@@ -52,7 +52,7 @@ const LayoutSidebar = () => {
             <div className='text-xs font-semibold text-gray-400'>
               Logged in as
             </div>
-            <div className='mr-6 break-all text-sm mb-1'>
+            <div className='pr-8 break-all text-sm mb-1 whitespace-nowrap overflow-ellipsis overflow-hidden'>
               {name}
             </div>
             <a href='/api/auth/destroy-session' className='text-sm flex items-center text-gray-400 hover:underline hover:text-secondary-light cursor-pointer duration-150'>
