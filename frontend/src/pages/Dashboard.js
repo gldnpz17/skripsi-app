@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, OpenInNew, PlusCircle, Speedometer, Warning } from "../common/icons"
+import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, DatabaseAlert, OpenInNew, PlusCircle, Speedometer, Warning } from "../common/icons"
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
@@ -164,52 +164,62 @@ const HealthLineChart = ({ dataPoints }) => {
           <Configuration className='h-5' />
         </IconButton>
       </div>
-      <div className='flex-grow mb-3'>
-        <Line
-          style={{
-            minHeight: "100%",
-            height: "0",
-            width: "100%"
-          }}
-          options={{
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: null,
-            },
-            scales: {
-              x: {
-                ticks: {
-                  color: 'white'
-                },
-                grid: {
-                  display: false
-                }
+      {dataPoints.length === 0 && (
+        <div className='text-gray-500 text-xl h-full font-bold flex flex-col items-center justify-center flex-grow'>
+          <DatabaseAlert className='h-32 mb-4' />
+          <span>No data to display</span>
+        </div>
+      )}
+      {dataPoints.length > 0 && (
+        <>
+          <div className='flex-grow mb-3'>
+          <Line
+            style={{
+              minHeight: "100%",
+              height: "0",
+              width: "100%"
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: null,
               },
-              y: {
-                display: false,
-                ticks: {
-                  color: 'white'
+              scales: {
+                x: {
+                  ticks: {
+                    color: 'white'
+                  },
+                  grid: {
+                    display: false
+                  }
                 },
-                grid: {
-                  display: false
+                y: {
+                  display: false,
+                  ticks: {
+                    color: 'white'
+                  },
+                  grid: {
+                    display: false
+                  }
                 }
               }
-            }
-          }}
-          data={{
-            labels,
-            datasets: [dataset]
-          }}
-        />
-      </div>
-      <div className='flex gap-3 flex-wrap mb-4'>
-        {Object.keys(metrics).map(key => (
-          <MetricButton {...{ key }} active={metric.label === metrics[key].label} onClick={() => setMetric(metrics[key])}>
-            {metrics[key].label}
-          </MetricButton>
-        ))}
-      </div>
+            }}
+            data={{
+              labels,
+              datasets: [dataset]
+            }}
+          />
+        </div>
+        <div className='flex gap-3 flex-wrap mb-4'>
+          {Object.keys(metrics).map(key => (
+            <MetricButton {...{ key }} active={metric.label === metrics[key].label} onClick={() => setMetric(metrics[key])}>
+              {metrics[key].label}
+            </MetricButton>
+          ))}
+        </div>
+        </>
+      )}
     </div>
   )
 }
@@ -248,17 +258,17 @@ const HealthComponentInformation = ({ title, Icon, content }) => (
   </div>
 )
 
-const ErrorMessage = ({ reason, helpLink, helpText }) => (
+const ErrorMessage = ({ message, reason, helpLink, helpText }) => (
   <div className='flex flex-col items-center'>
-    <div className='text-orange-300 flex gap-1 items-center'>
-      <Warning className='h-4' />
-      {reason}
+    <div className='flex gap-3 items-center'>
+      <Warning className='h-8 text-orange-300' />
+      <div>
+        <div className=''>{message}</div>
+        <div className='text-sm text-gray-300'>
+          <b>Reason :</b> {reason}. <ExternalLink className='inline-flex' to={helpLink}>{helpText}</ExternalLink>
+        </div>
+      </div>
     </div>
-    <ExternalLink
-      to={helpLink}
-    >
-      {helpText}
-    </ExternalLink>
   </div>
 )
 
@@ -286,8 +296,8 @@ const ErrorPlaceholder = ({ className, errorCode, ...props }) => {
   }, [errorCode, props])
 
   return (
-    <div className={`bg-dark-2 p-4 border border-gray-700 flex items-center justify-center rounded-md ${className}`}>
-      <ErrorMessage {...errorProps} />
+    <div className={`bg-dark-2 p-6 border border-gray-700 flex items-center justify-center flex-col gap-2 rounded-md ${className}`}>
+      <ErrorMessage {...errorProps} {...props} />
     </div>
   )
 }
@@ -395,6 +405,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       {metricsError && (
         <ErrorPlaceholder
           className='col-span-12'
+          message='Unable to display health metrics.'
           errorCode={metricsError.response.data}
           team={selectedTeam}
         />
@@ -447,6 +458,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
       {reportsError && (
         <ErrorPlaceholder
           className='col-span-12 mb-8'
+          message='Unable to display report list.'
           errorCode={reportsError.response.data}
           team={selectedTeam}
         />
