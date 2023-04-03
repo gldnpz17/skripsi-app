@@ -101,7 +101,7 @@ const GeneralSection = ({ team }) => {
           label='Team project deadline'
           type='date'
           stretch
-          value={team.deadline?.toISODate()}
+          defaultValue={team.deadline?.toISODate()}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
             projectId: team.project.id,
@@ -113,7 +113,7 @@ const GeneralSection = ({ team }) => {
           label='Cost per Effort'
           type='number'
           stretch
-          value={team.costPerEffort}
+          defaultValue={team.costPerEffort}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
             projectId: team.project.id,
