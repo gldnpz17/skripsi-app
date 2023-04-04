@@ -6,10 +6,11 @@ import { Edit } from "../common/icons"
 import { useParams } from "react-router-dom"
 import { readTeamDetails, updateTeam } from "../api-requests/Teams"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
-import { useCallback, useEffect, useReducer, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 import { DateTime } from "luxon"
 import { FormInput } from "../Components/Common/FormInput"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
+import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 
 const SectionTitle = ({ children }) => (
   <div className='text-sm items-center font-bold text-gray-400 mb-4'>
@@ -157,18 +158,22 @@ const TeamDetailsPage = () => {
 
   const {
     isLoading: reportsLoading,
-    data: reportMetrics
+    data: reportMetrics,
+    error: reportMetricsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
-    async () => await readTeamReports({ organizationName, projectId, teamId })
+    async () => await readTeamReports({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const {
     isLoading: availableReportsLoading,
-    data: availableReports
+    data: availableReports,
+    error: availableReportsError,
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'available-reports'],
-    async () => await readAvailableReports({ organizationName, projectId, teamId })
+    async () => await readAvailableReports({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const team = {
@@ -181,12 +186,28 @@ const TeamDetailsPage = () => {
     }
   }
 
+  const reportsError = useMemo(() => {
+    return reportMetricsError ?? availableReportsError ?? null
+  }, [reportMetricsError, availableReportsError])
+
   return (
     <div className='pr-80 pt-8 h-full overflow-auto'>
-      {!detailsLoading && !reportsLoading && !availableReportsLoading && (
+      {!detailsLoading && (
+        <GeneralSection team={details.team} />
+      )}
+      {!reportsLoading && !availableReportsLoading && (
         <>
-          <GeneralSection team={details.team} />
-          <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
+          {reportsError && (
+            <ErrorPlaceholder
+              className='col-span-12 mb-8'
+              message='Unable to display report list.'
+              errorCode={reportsError.response.data}
+              {...{ team }}
+            />
+          )}
+          {!reportsError && (
+            <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
+          )}
         </>
       )}
     </div>

@@ -12,19 +12,8 @@ import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 import { DateTime } from "luxon"
-
-const ExternalLinkWrapper = ({ to, children, ...props }) => {
-  const isAbsolute = /https:\/\//g.test(to)
-
-  return isAbsolute ? <a href={to} {...props}>{children}</a> : <Link {...{ to, ...props }}>{children}</Link>
-}
-
-const ExternalLink = ({ className, children, to }) => (
-  <ExternalLinkWrapper {...{ to }} target='_blank' className={`text-sm flex gap-1 items-center underline cursor-pointer text-gray-400 hover:text-secondary-light duration-150 ${className}`}>
-    <span>{children}</span>
-    <OpenInNew className='h-4' />
-  </ExternalLinkWrapper>
-)  
+import { ExternalLink } from "../Components/Common/ExternalLink"
+import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 
 const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   return (
@@ -258,50 +247,6 @@ const HealthComponentInformation = ({ title, Icon, content }) => (
   </div>
 )
 
-const ErrorMessage = ({ message, reason, helpLink, helpText }) => (
-  <div className='flex flex-col items-center'>
-    <div className='flex gap-3 items-center'>
-      <Warning className='h-8 text-orange-300' />
-      <div>
-        <div className=''>{message}</div>
-        <div className='text-sm text-gray-300'>
-          <b>Reason :</b> {reason}. <ExternalLink className='inline-flex' to={helpLink}>{helpText}</ExternalLink>
-        </div>
-      </div>
-    </div>
-  </div>
-)
-
-const ErrorPlaceholder = ({ className, errorCode, ...props }) => {
-  const errorProps = useMemo(() => {
-    const errors = {
-      'TEAM_NO_DEADLINE': () => ({
-        reason: 'Deadline not set',
-        helpText: 'Set deadline',
-        helpLink: `/teams/${props.team.organization.name}/${props.team.project.id}/${props.team.id}`
-      }),
-      'TEAM_NO_SPRINTS': () => ({
-        reason: 'No sprints',
-        helpText: 'Add sprint',
-        helpLink: `https://dev.azure.com/${props.team.organization.name}/${encodeURI(props.team.project.name)}`
-      }),
-      'TEAM_NO_EFFORT_COST': () => ({
-        reason: 'Cost per effort not set',
-        helpText: 'Set cost per effort',
-        helpLink: `/teams/${props.team.organization.name}/${props.team.project.id}/${props.team.id}`
-      })
-    }
-
-    return errors[errorCode]()
-  }, [errorCode, props])
-
-  return (
-    <div className={`bg-dark-2 p-6 border border-gray-700 flex items-center justify-center flex-col gap-2 rounded-md ${className}`}>
-      <ErrorMessage {...errorProps} {...props} />
-    </div>
-  )
-}
-
 const Skeleton = ({ className }) => (
   <div className={`animate-pulse rounded-md bg-dark-2 ${className}`}>
   </div>
@@ -340,7 +285,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     error: metricsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'metrics'],
-    async () => await readTeamMetrics({ organizationName, projectId, teamId })
+    async () => await readTeamMetrics({ organizationName, projectId, teamId }),
   )
 
   const {
@@ -348,7 +293,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     data: metricsTimeline
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'metrics', 'timeline'],
-    async () => await readTeamMetricsTimeline({ organizationName, projectId, teamId })
+    async () => await readTeamMetricsTimeline({ organizationName, projectId, teamId }),
   )
 
   const {
@@ -357,7 +302,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     error: reportMetricsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
-    async () => await readTeamReports({ organizationName, projectId, teamId })
+    async () => await readTeamReports({ organizationName, projectId, teamId }),
   )
 
   const {
@@ -366,7 +311,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
     error: availableReportsError
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'available-reports'],
-    async () => await readAvailableReports({ organizationName, projectId, teamId })
+    async () => await readAvailableReports({ organizationName, projectId, teamId }),
   )
 
   const reportsError = useMemo(() => {
