@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
@@ -15,6 +15,7 @@ import { DateTime } from "luxon"
 import { ExternalLink } from "../Components/Common/ExternalLink"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Skeleton } from "../Components/Common/Skeleton"
+import { usePersistedValue } from "../Hooks/usePersistedState"
 
 const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   return (
@@ -33,11 +34,8 @@ const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   )
 }
 
-const TeamsListSection = ({ setSelectedTeam }) => {
-  const {
-    data: teams,
-    isLoading: teamsLoading
-  } = useQuery(['projects', 'tracked'], readTrackedTeams)
+const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading }) => {
+
 
   return (
     <div>
@@ -282,6 +280,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'metrics'],
     async () => await readTeamMetrics({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const {
@@ -290,6 +289,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'metrics', 'timeline'],
     async () => await readTeamMetricsTimeline({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const {
@@ -299,6 +299,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'reports'],
     async () => await readTeamReports({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const {
@@ -308,6 +309,7 @@ const TeamDetailsSection = ({ selectedTeam }) => {
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'available-reports'],
     async () => await readAvailableReports({ organizationName, projectId, teamId }),
+    { retry: false }
   )
 
   const reportsError = useMemo(() => {
@@ -425,7 +427,25 @@ const NoSelectedTeamPlaceholder = () => (
 )
 
 const DashboardPage = () => {
-  const [selectedTeam, setSelectedTeam] = useState(null)
+  const {
+    data: teams,
+    isLoading: teamsLoading
+  } = useQuery(['projects', 'tracked'], readTrackedTeams)
+
+  const [selectedTeam, setSelectedTeam] = useState(undefined)
+  
+  useEffect(() => {
+    if (!teams) return
+
+    const storedTeamId = window.localStorage.getItem('defaultTeamId')
+    const team = teams.find(team => team.id === storedTeamId)
+    setSelectedTeam(team)
+  }, [teamsLoading])
+
+  const setSelectedTeamProxy = (team) => {
+    window.localStorage.setItem('defaultTeamId', team.id)
+    setSelectedTeam(team)
+  }
 
   return (
     <div className='h-full overflow-auto'>
@@ -433,14 +453,14 @@ const DashboardPage = () => {
         {selectedTeam && (
           <TeamDetailsSection {...{ selectedTeam }} />
         )}
-        {!selectedTeam && (
+        {selectedTeam === null && (
           <NoSelectedTeamPlaceholder />
         )}
       </div>
       <div className='w-64 top-8 bottom-0 right-12 fixed pl-4'>
         {/* Divider */}
         <div className='w-px absolute top-0 bottom-8 left-0 bg-gray-700' />
-        <TeamsListSection {...{ setSelectedTeam }} />
+        <TeamsListSection {...{ setSelectedTeam: setSelectedTeamProxy, teams, teamsLoading }} />
       </div>
     </div>
   )
