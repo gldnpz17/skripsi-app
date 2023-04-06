@@ -14,6 +14,7 @@ import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 import { DateTime } from "luxon"
 import { ExternalLink } from "../Components/Common/ExternalLink"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
+import { Skeleton } from "../Components/Common/Skeleton"
 
 const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   return (
@@ -244,11 +245,6 @@ const HealthComponentInformation = ({ title, Icon, content }) => (
       <div className='text-sm text-gray-400'>{title}</div>
     </div>
     <div>{content}</div>
-  </div>
-)
-
-const Skeleton = ({ className }) => (
-  <div className={`animate-pulse rounded-md bg-dark-2 ${className}`}>
   </div>
 )
 

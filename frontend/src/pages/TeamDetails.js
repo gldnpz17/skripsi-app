@@ -193,7 +193,10 @@ const TeamDetailsPage = () => {
   return (
     <div className='pr-80 pt-8 h-full overflow-auto'>
       {!detailsLoading && (
-        <GeneralSection team={details.team} />
+        <>
+          <h1 className='text-2xl mb-6'>Team Settings - {details.team.name}</h1>
+          <GeneralSection team={details.team} />
+        </>
       )}
       {!reportsLoading && !availableReportsLoading && (
         <>

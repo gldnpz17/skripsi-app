@@ -2,18 +2,20 @@ import axios from "axios";
 import { DateTime } from "luxon";
 import { mapReport } from "./mappers/Report";
 
+const mapTeam = ({
+  deadline,
+  ...team
+}) => ({
+  ...team,
+  deadline: deadline ? DateTime.fromISO(deadline) : null
+})
+
 const mapTeamDetails = ({ 
-  team: {
-    deadline,
-    ...team
-  },
+  team,
   ...details 
 }) => ({
   ...details,
-  team: {
-    ...team,
-    deadline: deadline ? DateTime.fromISO(deadline) : null
-  }
+  team: mapTeam(team)
 })
 
 const mapTimelineMetric = ({
@@ -26,7 +28,7 @@ const mapTimelineMetric = ({
 
 const readUntrackedTeams = async ({ projectId }) => await (await axios.get(`/api/teams/untracked?projectId=${projectId}`)).data
 
-const readTrackedTeams = async () => await (await axios.get('/api/teams/tracked')).data
+const readTrackedTeams = async () => (await (await axios.get('/api/teams/tracked')).data).map(mapTeam)
 
 const readTeamMetrics = async ({ organizationName, projectId, teamId }) => 
   (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics`)).data

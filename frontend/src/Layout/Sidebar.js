@@ -23,7 +23,7 @@ const SidebarItem = ({ icon, label, href, pathMatch }) => {
 
 const SidebarItems = [
   { icon: <Dashboard />, label: 'Dashboard', href: '/' },
-  { icon: <Team />, label: 'Team Details', href: '/teams', pathMatch: '/teams/:organizationName?/:projectId?/:teamId?' },
+  { icon: <Team />, label: 'My Teams', href: '/teams', pathMatch: '/teams' },
   { icon: <Configuration />, label: 'Configuration', href: '/configuration' }
 ]
 

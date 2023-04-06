@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
+using SkripsiAppBackend.Common.Authorization;
 using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
+using SkripsiAppBackend.Persistence.Models;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.ObjectCachingService;
@@ -74,6 +76,16 @@ namespace SkripsiAppBackend.Controllers
                     Project = profileTeam.Project,
                 };
             }
+
+            public Team AddModelDetails(Persistence.Models.TrackedTeam team)
+            {
+                Deadline = team.Deadline;
+                CostPerEffort = team.CostPerEffort;
+                EacFormula = team.EacFormula;
+                EtcFormula = team.EtcFormula;
+
+                return this;
+            }
         }
 
         private async Task<List<(string, string, string)>> FetchExistingTeamIds(List<Team> profileTeams)
@@ -117,9 +129,11 @@ namespace SkripsiAppBackend.Controllers
 
             var existingTeams = await FetchExistingTeamIds(profileTeams);
 
-            return profileTeams
-                .Where(team => existingTeams.Contains((team.Organization.Name, team.Project.Id, team.Id)))
-                .ToList();
+            var teamsTask = existingTeams.Select(async team => await GetTeam(team.Item1, team.Item2, team.Item3)).ToList();
+
+            var teams = await Task.WhenAll(teamsTask);
+
+            return teams.ToList();
         }
 
         public struct TeamDetails
@@ -153,44 +167,16 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            var trackedTeam = await database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
-
-            var authorizationResult = await authorizationService.AuthorizeAsync(User, trackedTeam, AuthorizationPolicies.AllowTeamMember);
-            if (!authorizationResult.Succeeded)
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
             {
                 return Unauthorized();
             }
 
             return new TeamDetails()
             {
-                Team = await GetTeam()
+                Team = await GetTeam(organizationName, projectId, teamId)
             };
-
-            async Task<Team> GetTeam()
-            {
-                var projectTask = azureDevopsService.ReadProject(organizationName, projectId);
-                var teamTask = azureDevopsService.ReadTeam(organizationName, projectId, teamId);
-
-                await Task.WhenAll(projectTask, teamTask);
-
-                var project = await projectTask;
-                var team = await teamTask;
-
-                return new Team()
-                {
-                    Id = teamId,
-                    Name = team.Name,
-                    Project = project,
-                    Deadline = trackedTeam.Deadline,
-                    CostPerEffort = trackedTeam.CostPerEffort,
-                    EacFormula = trackedTeam.EacFormula,
-                    EtcFormula = trackedTeam.EtcFormula,
-                    Organization = new IAzureDevopsService.Organization()
-                    {
-                        Name = organizationName
-                    }
-                };
-            }
 
             async Task<List<TeamUseCases.SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
             {
@@ -221,6 +207,29 @@ namespace SkripsiAppBackend.Controllers
 
                 return sprintWorkItems;
             }
+        }
+        private async Task<Team> GetTeam(string organizationName, string projectId, string teamId)
+        {
+            var trackedTeamTask = database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
+            var projectTask = azureDevopsService.ReadProject(organizationName, projectId);
+            var teamTask = azureDevopsService.ReadTeam(organizationName, projectId, teamId);
+
+            await Task.WhenAll(projectTask, teamTask, trackedTeamTask);
+
+            return new Team()
+            {
+                Id = teamId,
+                Name = teamTask.Result.Name,
+                Project = projectTask.Result,
+                Deadline = trackedTeamTask.Result.Deadline,
+                CostPerEffort = trackedTeamTask.Result.CostPerEffort,
+                EacFormula = trackedTeamTask.Result.EacFormula,
+                EtcFormula = trackedTeamTask.Result.EtcFormula,
+                Organization = new IAzureDevopsService.Organization()
+                {
+                    Name = organizationName
+                }
+            };
         }
 
         public struct TrackTeamDto
