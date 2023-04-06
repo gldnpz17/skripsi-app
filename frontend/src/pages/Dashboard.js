@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, DatabaseAlert, OpenInNew, PlusCircle, Speedometer, Warning } from "../common/icons"
+import { CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, DatabaseAlert, OpenInNew, PinFilled, PinFilledOff, PinOutline, PlusCircle, Speedometer, Warning } from "../common/icons"
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
@@ -17,14 +17,59 @@ import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Skeleton } from "../Components/Common/Skeleton"
 import { usePersistedValue } from "../Hooks/usePersistedState"
 
-const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
+const PinButton = ({ pinned, parentHovered, togglePin }) => {
+  const [hovered, setHovered] = useState(false)
+
+  const onClick = (e) => {
+    e.stopPropagation()
+    togglePin()
+  }
+
   return (
-    <div {...{ onClick }} className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden hover:-translate-x-1 duration-150 hover:brightness-125 bg-dark-2'>
+    <button
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      {...{ onClick }}
+    >
+      {pinned && !hovered && (
+        <PinFilled className='h-4' />
+      )}
+      {parentHovered && (
+        <>
+          {pinned && hovered && (
+            <PinFilledOff className='h-4' />
+          )}
+          {!pinned && !hovered && (
+            <PinOutline className='h-4' />
+          )}
+          {!pinned && hovered && (
+            <PinFilled className='h-4' />
+          )}
+        </>
+      )}
+    </button>
+  )
+}
+
+const TeamListItem = ({ team: { name }, selected = false, onClick, pinned, togglePin }) => {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      {...{ onClick }}
+      className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden duration-150 hover:brightness-125 bg-dark-2'
+    >
       <div className={`absolute top-0 bottom-0 left-0 w-1 ${selected && 'bg-secondary-dark'} duration-150`} />
       <span className='px-4 py-2 flex'>
         <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
           {name}
         </span>
+        <PinButton
+          parentHovered={hovered}
+          {...{ pinned, togglePin }}
+        />
         {/* TODO: Implement health status icons. */}
         {/* <span className={`${Format.statusColor('Healthy', 'text-')}`}>
           {Format.status('Healthy')}
@@ -34,9 +79,7 @@ const TeamListItem = ({ team: { id, name }, selected = false, onClick }) => {
   )
 }
 
-const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading }) => {
-
-
+const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading, teamPinned, togglePin }) => {
   return (
     <div>
       <div className='mb-3 text-gray-300 font-semibold'>Teams</div>
@@ -44,7 +87,14 @@ const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading }) => {
         <>
           <div className='flex flex-col gap-4 mb-6'>
             {teams.map(team => (
-              <TeamListItem key={team.id} {...{ team }} selected={false} onClick={() => setSelectedTeam(team)} />
+              <TeamListItem
+                key={team.id}
+                selected={false}
+                onClick={() => setSelectedTeam(team)}
+                pinned={teamPinned(team)}
+                togglePin={togglePin(team)}
+                {...{ team }} 
+              />
             ))}
           </div>
           <a href='/track-new' target='_blank'>
@@ -447,11 +497,33 @@ const DashboardPage = () => {
     setSelectedTeam(team)
   }
 
+  const [pinnedTeamIds, setPinnedTeamIds] = usePersistedValue('pinnedTeamIds', [])
+
+  const teamPinned = useCallback((team) => Boolean(pinnedTeamIds.find(id => id === team.id)), [pinnedTeamIds])
+
+  const togglePin = useCallback((team) => () => {
+    const newList = [...pinnedTeamIds]
+    if (newList.find(id => id === team.id)) {
+      setPinnedTeamIds(newList.filter(id => id !== team.id))
+    } else {
+      setPinnedTeamIds([...newList, team.id])
+    }
+  }, [pinnedTeamIds])
+
+  const sortedTeams = useMemo(() => {
+    if (!teams) return []
+    const pinnedTeams = teams.filter(team => Boolean(pinnedTeamIds.find(id => id === team.id)))
+    const unpinnedTeams = teams.filter(team => !Boolean(pinnedTeamIds.find(id => id === team.id)))
+    return [...pinnedTeams, ...unpinnedTeams]
+  }, [teams, pinnedTeamIds])
+
   return (
     <div className='h-full overflow-auto'>
       <div className='mr-80 mt-8'>
         {selectedTeam && (
-          <TeamDetailsSection {...{ selectedTeam }} />
+          <TeamDetailsSection
+            {...{ selectedTeam }} 
+          />
         )}
         {selectedTeam === null && (
           <NoSelectedTeamPlaceholder />
@@ -460,7 +532,11 @@ const DashboardPage = () => {
       <div className='w-64 top-8 bottom-0 right-12 fixed pl-4'>
         {/* Divider */}
         <div className='w-px absolute top-0 bottom-8 left-0 bg-gray-700' />
-        <TeamsListSection {...{ setSelectedTeam: setSelectedTeamProxy, teams, teamsLoading }} />
+        <TeamsListSection
+          setSelectedTeam={setSelectedTeamProxy}
+          teams={sortedTeams}
+          {...{ teamsLoading, teamPinned, togglePin }}
+        />
       </div>
     </div>
   )

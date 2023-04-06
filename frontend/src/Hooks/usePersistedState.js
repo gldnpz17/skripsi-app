@@ -1,7 +1,15 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
-const usePersistedValue = (key) => {
-  const [value, setValue] = useState(JSON.parse(window.localStorage.getItem(key)))
+const usePersistedValue = (key, defaltValue = null) => {
+  const storedValue = window.localStorage.getItem(key)
+
+  const [value, setValue] = useState(storedValue ? JSON.parse(storedValue) : defaltValue)
+
+  useEffect(() => {
+    if (!storedValue) {
+      window.localStorage.setItem(key, defaltValue)
+    } 
+  }, [])
 
   const setAndPersistValue = (newValue) => {
     if (newValue == null) {
