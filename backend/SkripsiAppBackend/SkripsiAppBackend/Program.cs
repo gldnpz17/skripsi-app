@@ -43,8 +43,7 @@ builder.Services.AddScoped<AccessTokenService>();
 
 builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));
 
-builder.Services.AddScoped<TeamUseCases>();
-builder.Services.AddScoped<MetricUseCases>();
+builder.Services.AddScoped<MetricCalculations>();
 
 builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>),
@@ -62,11 +61,15 @@ builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy(AuthorizationPolicies.AllowAuthenticated,
+        policy => policy.Requirements.Add(new AllowAuthenticatedRequirement()));
+
     options.AddPolicy(AuthorizationPolicies.AllowTeamMember,
         policy => policy.Requirements.Add(new AllowTeamMemberRequirement()));
 });
 
 builder.Services.AddSingleton<IAuthorizationHandler, AllowTeamMemberHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, AllowAuthenticationHandler>();
 
 var app = builder.Build();
 

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using SkripsiAppBackend.Services;
 using Flurl.Http;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using Microsoft.AspNetCore.Authorization;
+using SkripsiAppBackend.Common;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -22,6 +24,7 @@ namespace SkripsiAppBackend.Controllers
         }
 
         [HttpGet("self")]
+        [Authorize(Policy = AuthorizationPolicies.AllowAuthenticated)]
         public async Task<ActionResult<Profile>> GetSelfProfile()
         {
             var profile = azureDevopsService.ReadSelfProfile();

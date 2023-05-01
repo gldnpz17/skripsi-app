@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using System.Security.Cryptography.X509Certificates;
 
@@ -25,6 +27,7 @@ namespace SkripsiAppBackend.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = AuthorizationPolicies.AllowAuthenticated)]
         public async Task<ActionResult<List<Project>>> ReadAllProjects()
         {
             var organizations = await azureDevopsService.ReadAllOrganizations();

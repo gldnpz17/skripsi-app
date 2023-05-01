@@ -2,9 +2,8 @@
 {
     public static class AuthorizationPolicies
     {
-        public static string AllowTeamMember
-        {
-            get { return "AllowTeamMember"; }
-        }
+
+        public const string AllowAuthenticated = "AllowAuthenticated";
+        public const string AllowTeamMember = "AllowTeamMember";
     }
 }

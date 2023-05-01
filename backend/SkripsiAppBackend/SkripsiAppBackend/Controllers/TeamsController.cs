@@ -26,23 +26,20 @@ namespace SkripsiAppBackend.Controllers
         private readonly IAzureDevopsService azureDevopsService;
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
-        private readonly TeamUseCases teamUseCases;
-        private readonly MetricUseCases metricUseCases;
+        private readonly MetricCalculations metricCalculations;
         private readonly Configuration configuration;
 
         public TeamsController(
             IAzureDevopsService azureDevopsService, 
             Database database,
             IAuthorizationService authorizationService,
-            TeamUseCases teamUseCases,
-            MetricUseCases metricUseCases,
+            MetricCalculations metricCalculations,
             Configuration configuration)
         {
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
-            this.teamUseCases = teamUseCases;
-            this.metricUseCases = metricUseCases;
+            this.metricCalculations = metricCalculations;
             this.configuration = configuration;
         }
 
@@ -142,23 +139,23 @@ namespace SkripsiAppBackend.Controllers
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}/metrics")]
-        public async Task<ActionResult<MetricUseCases.MetricsCollection>> ReadTeamMetrics(
+        public async Task<ActionResult<MetricCalculations.MetricsCollection>> ReadTeamMetrics(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            return await metricUseCases.CalculateTeamMetricsOverview(organizationName, projectId, teamId);
+            return await metricCalculations.CalculateTeamMetricsOverview(organizationName, projectId, teamId);
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/timeline")]
-        public async Task<ActionResult<List<MetricUseCases.MetricsTimelineDataPoint>>> ReadTeamMetricsTimeline(
+        public async Task<ActionResult<List<MetricCalculations.MetricsTimelineDataPoint>>> ReadTeamMetricsTimeline(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId,
             [FromQuery] DateTime? startDate,
             [FromQuery] DateTime? endDate)
         {
-            return await metricUseCases.CalculateTimelineMetrics(organizationName, projectId, teamId, startDate, endDate);
+            return await metricCalculations.CalculateTimelineMetrics(organizationName, projectId, teamId, startDate, endDate);
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
@@ -178,7 +175,7 @@ namespace SkripsiAppBackend.Controllers
                 Team = await GetTeam(organizationName, projectId, teamId)
             };
 
-            async Task<List<TeamUseCases.SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
+            async Task<List<MetricCalculations.SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
             {
                 var latestCompletedSprints = sprints
                     .FindAll(sprint => 
@@ -187,7 +184,7 @@ namespace SkripsiAppBackend.Controllers
                     .OrderBy(sprint => sprint.EndDate)
                     .Take(count);
 
-                var sprintWorkItems = new List<TeamUseCases.SprintWorkItems>();
+                var sprintWorkItems = new List<MetricCalculations.SprintWorkItems>();
                 var fetchTasks = latestCompletedSprints.Select(async (sprint) =>
                 {
                     var workItems = await azureDevopsService.ReadSprintWorkItems(
@@ -196,7 +193,7 @@ namespace SkripsiAppBackend.Controllers
                         teamId,
                         sprint.Id);
 
-                    sprintWorkItems.Add(new TeamUseCases.SprintWorkItems()
+                    sprintWorkItems.Add(new MetricCalculations.SprintWorkItems()
                     {
                         Sprint = sprint,
                         WorkItems = workItems
@@ -242,6 +239,12 @@ namespace SkripsiAppBackend.Controllers
         [HttpPost]
         public async Task<ActionResult> TrackTeam([FromBody] TrackTeamDto dto)
         {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, dto.OrganizationName, dto.ProjectId, dto.TeamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
             await database.TrackedTeams.CreateTrackedTeam(dto.OrganizationName, dto.ProjectId, dto.TeamId);
             
             return Ok();
@@ -250,6 +253,12 @@ namespace SkripsiAppBackend.Controllers
         [HttpDelete]
         public async Task<ActionResult> UntrackTeam([FromBody] TrackTeamDto dto)
         {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, dto.OrganizationName, dto.ProjectId, dto.TeamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
             await database.TrackedTeams.UntrackTeam(dto.OrganizationName, dto.ProjectId, dto.TeamId);
 
             return Ok();
@@ -271,6 +280,12 @@ namespace SkripsiAppBackend.Controllers
             [FromBody] UpdateTeamDto dto
         )
         {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
             await database.TrackedTeams.UpdateTeam(organizationName,
                                                    projectId,
                                                    teamId,

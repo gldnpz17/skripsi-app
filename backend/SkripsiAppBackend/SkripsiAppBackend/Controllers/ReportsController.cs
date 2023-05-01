@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SkripsiAppBackend.Common.Authorization;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.UseCases;
 using System.Runtime.CompilerServices;
-using static SkripsiAppBackend.UseCases.MetricUseCases;
+using static SkripsiAppBackend.UseCases.MetricCalculations;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -12,12 +14,17 @@ namespace SkripsiAppBackend.Controllers
     public class ReportsController : Controller
     {
         private readonly Database database;
-        private readonly MetricUseCases metricUseCases;
+        private readonly MetricCalculations metricCalculations;
+        private readonly IAuthorizationService authorizationService;
 
-        public ReportsController(Database database, MetricUseCases metricUseCases)
+        public ReportsController(
+            Database database,
+            MetricCalculations metricCalculations,
+            IAuthorizationService authorizationService)
         {
             this.database = database;
-            this.metricUseCases = metricUseCases;
+            this.metricCalculations = metricCalculations;
+            this.authorizationService = authorizationService;
         }
 
         public struct Team
@@ -60,9 +67,9 @@ namespace SkripsiAppBackend.Controllers
             public DateTime EndDate { get; set; }
             public int Expenditure { get; set; }
 
-            public MetricUseCases.Report ToUseCaseModel()
+            public MetricCalculations.Report ToUseCaseModel()
             {
-                return new MetricUseCases.Report()
+                return new MetricCalculations.Report()
                 {
                     StartDate = StartDate,
                     EndDate = EndDate,
@@ -79,7 +86,13 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute]string teamId,
             [FromBody]CreateReportDto dto)
         {
-            await metricUseCases.CreateReport(organizationName, projectId, teamId, dto.ToUseCaseModel());
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            await metricCalculations.CreateReport(organizationName, projectId, teamId, dto.ToUseCaseModel());
 
             return Ok();
         }
@@ -90,9 +103,15 @@ namespace SkripsiAppBackend.Controllers
         }
 
         [HttpGet("{reportId}")]
-        public async Task<Report> ReadReportById([FromRoute] int reportId)
+        public async Task<ActionResult<Report>> ReadReportById([FromRoute] int reportId)
         {
             var report = await database.Reports.ReadReport(reportId);
+
+            var authorization = await authorizationService.AllowTeamMembers(database, User, report.OrganizationName, report.ProjectId, report.TeamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
 
             return Report.FromPersistenceModel(report);
         }
@@ -100,6 +119,14 @@ namespace SkripsiAppBackend.Controllers
         [HttpPatch("{reportId}")]
         public async Task<ActionResult> PatchReport([FromRoute] int reportId, [FromBody] PatchReportDto dto)
         {
+            var report = await database.Reports.ReadReport(reportId);
+
+            var authorization = await authorizationService.AllowTeamMembers(database, User, report.OrganizationName, report.ProjectId, report.TeamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
             if (dto.Expenditure.HasValue)
             {
                 await database.Reports.UpdateExpenditure(reportId, (int)dto.Expenditure);
@@ -115,34 +142,52 @@ namespace SkripsiAppBackend.Controllers
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            return await metricUseCases.ListExistingReports(organizationName, projectId, teamId);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            return await metricCalculations.ListExistingReports(organizationName, projectId, teamId);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/available")]
         [HttpGet]
-        public async Task<List<MetricUseCases.AvailableReport>> ReadAllAvailableReports(
+        public async Task<ActionResult<List<MetricCalculations.AvailableReport>>> ReadAllAvailableReports(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId)  
         {
-            return await metricUseCases.ListAvailableReports(organizationName, projectId, teamId);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            return await metricCalculations.ListAvailableReports(organizationName, projectId, teamId);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/timespan-sprints")]
         [HttpGet]
-        public async Task<List<MetricUseCases.ReportSprint>> ReadTimespanSprints(
+        public async Task<ActionResult<List<MetricCalculations.ReportSprint>>> ReadTimespanSprints(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId,
             [FromQuery] DateTime start,
             [FromQuery] DateTime end)
         {
-            return await metricUseCases.GetTimespanSprints(organizationName, projectId, teamId, start, end);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            return await metricCalculations.GetTimespanSprints(organizationName, projectId, teamId, start, end);
         }
 
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/new-report-metrics")]
         [HttpGet]
-        public async Task<MetricUseCases.ReportMetrics> ReadNewReportMetrics(
+        public async Task<ActionResult<MetricCalculations.ReportMetrics>> ReadNewReportMetrics(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId,
@@ -150,10 +195,16 @@ namespace SkripsiAppBackend.Controllers
             [FromQuery] DateTime end,
             [FromQuery] int expenditure)
         {
-            return await metricUseCases.CalculateReportMetrics(
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            return await metricCalculations.CalculateReportMetrics(
                 organizationName,
                 projectId,
-                teamId, new MetricUseCases.Report()
+                teamId, new MetricCalculations.Report()
                 {
                     StartDate = start,
                     EndDate = end,

@@ -6,23 +6,21 @@ using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.UseCases.Extensions;
 using System.ComponentModel;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.UseCases
 {
-    public class MetricUseCases
+    public class MetricCalculations
     {
         private readonly Database database;
         private readonly IAzureDevopsService azureDevopsService;
-        private readonly TeamUseCases teamUseCases;
 
-        public MetricUseCases(
+        public MetricCalculations(
             Database database,
-            IAzureDevopsService azureDevopsService,
-            TeamUseCases teamUseCases)
+            IAzureDevopsService azureDevopsService)
         {
             this.database = database;
             this.azureDevopsService = azureDevopsService;
-            this.teamUseCases = teamUseCases;
         }
 
         public struct AvailableReport
@@ -186,6 +184,13 @@ namespace SkripsiAppBackend.UseCases
             public HealthMetrics HealthMetrics { get; set; }
         }
 
+        public struct SprintWorkItems
+        {
+            public Sprint Sprint { get; set; }
+            public List<WorkItem> WorkItems { get; set; }
+        }
+
+
         public enum EstimateToCompletionFormulas
         {
             Unknown,
@@ -223,29 +228,88 @@ namespace SkripsiAppBackend.UseCases
             }
         }
 
-        public async Task<List<ReportSprint>> GetTimespanSprints(string organizationName, string projectId, string teamId, DateTime startDate, DateTime endDate)
+        public async Task<double> CalculateTeamEffort(string organizationName, string projectId, string teamId)
+        {
+            var backlogWorkItems = await azureDevopsService.ReadBacklogWorkItems(organizationName, projectId, teamId);
+            var teamSprints = await GetSprintWorkItemsAsync(organizationName, projectId, teamId);
+            var completedWorkItems = teamSprints
+                    .SelectMany(sprintWorkItems => sprintWorkItems.WorkItems)
+                    .Where(workItem => workItem.State == WorkItemState.Done);
+            var incompleteWorkItems = teamSprints
+                .SelectMany(sprintWorkItem => sprintWorkItem.WorkItems)
+                .Where(workItem => workItem.State != WorkItemState.Done);
+
+            var totalEffort = CalculateTotalEffort(backlogWorkItems.Concat(incompleteWorkItems).Concat(completedWorkItems).ToList());
+
+            return totalEffort;
+        }
+
+        private async Task<List<SprintWorkItems>> GetSprintWorkItemsAsync(string organizationName, string projectId, string teamId)
+        {
+            var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+
+            var sprintWorkItems = new List<SprintWorkItems>();
+            var fetchTasks = sprints.Select(async (sprint) =>
+            {
+                var workItems = await azureDevopsService.ReadSprintWorkItems(
+                    organizationName,
+                    projectId,
+                    teamId,
+                    sprint.Id);
+
+                sprintWorkItems.Add(new SprintWorkItems()
+                {
+                    Sprint = sprint,
+                    WorkItems = workItems
+                });
+            });
+
+            await Task.WhenAll(fetchTasks);
+
+            return sprintWorkItems;
+        }
+
+        public double CalculateTotalEffort(List<WorkItem> workItems)
+        {
+            double totalEffort = 0;
+            workItems.ForEach(workItem => totalEffort += workItem.Effort);
+            return totalEffort;
+        }
+
+        public async Task<List<ReportSprint>> GetTimespanSprints(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime reportStartDate,
+            DateTime reportEndDate,
+            // TODO: Perhaps consider using the strategy pattern or perhaps refactoring the code?
+            Func<List<IAzureDevopsService.WorkItem>, List<IAzureDevopsService.WorkItem>>? filterWorkItems = null)
         {
             var sprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
 
             var accountedSprints = sprints
                 .Where(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
                 .Where(sprint =>
-                    sprint.StartDate >= startDate && sprint.EndDate <= endDate ||
-                    sprint.StartDate <= startDate && sprint.EndDate >= startDate ||
-                    sprint.StartDate <= endDate && sprint.EndDate >= endDate
+                    sprint.StartDate >= reportStartDate && sprint.EndDate <= reportEndDate ||
+                    sprint.StartDate <= reportStartDate && sprint.EndDate >= reportStartDate ||
+                    sprint.StartDate <= reportEndDate && sprint.EndDate >= reportEndDate
                 )
                 .Select(async (sprint) =>
                 {
                     DateTime sprintStartDate = (DateTime)sprint.StartDate;
                     DateTime sprintEndDate = (DateTime)sprint.EndDate;
 
-                    var accountedStartDate = new DateTime(Math.Max(sprintStartDate.Ticks, startDate.Ticks));
-                    var accountedEndDate = new DateTime(Math.Min(sprintEndDate.Ticks, endDate.Ticks));
+                    var startTicks = Math.Max(sprintStartDate.Ticks, reportStartDate.Ticks);
+                    var accountedStartDate = new DateTime(startTicks);
+                    var endTicks = Math.Min(sprintEndDate.Ticks, reportEndDate.Ticks);
+                    var accountedEndDate = new DateTime(endTicks);
 
-                    var accountedWorkFactor = (accountedEndDate - accountedStartDate).TotalDays / (sprintEndDate - sprintStartDate).TotalDays;
+                    var accountedDays = (accountedEndDate - accountedStartDate).TotalDays;
+                    var sprintDays = (sprintEndDate - sprintStartDate).TotalDays;
+                    var accountedWorkFactor = accountedDays / sprintDays; 
 
                     var sprintWorkItems = await azureDevopsService.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
-                    var totalEffort = teamUseCases.CalculateTotalEffort(sprintWorkItems);
+                    var totalEffort = CalculateTotalEffort(filterWorkItems != null ? filterWorkItems(sprintWorkItems) : sprintWorkItems);
 
                     return new ReportSprint()
                     {
@@ -497,13 +561,27 @@ namespace SkripsiAppBackend.UseCases
 
             var team = database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
             var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
-            var teamEffort = teamUseCases.CalculateTeamEffort(organizationName, projectId, teamId);
+            var teamEffort = CalculateTeamEffort(organizationName, projectId, teamId);
             var completedEffort = CalculateReportCompletedEffort(organizationName, projectId, teamId, (DateTime)report.StartDate, (DateTime)report.EndDate);
+            var teamSprints = azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
 
-            await Task.WhenAll(team, workDays, teamEffort, completedEffort);
+            await Task.WhenAll(team, workDays, teamEffort, completedEffort, teamSprints);
+            
+            var earliestSprint = teamSprints.Result
+                .Where(sprint => sprint.StartDate.HasValue)
+                .OrderBy(sprint => sprint.StartDate)
+                .FirstOrDefault();
 
-            var reportDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)report.EndDate, workDays.Result);
-            var teamDuration = ((DateTime)report.StartDate).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
+            if (!earliestSprint.StartDate.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
+            var reportStartDate = (DateTime)report.StartDate < (DateTime)team.Result.Deadline ? report.StartDate : team.Result.Deadline;
+            var reportEndDate = (DateTime)report.EndDate < (DateTime)team.Result.Deadline ? report.EndDate : team.Result.Deadline;
+
+            var reportDuration = ((DateTime)reportStartDate).WorkingDaysUntil((DateTime)reportEndDate, workDays.Result);
+            var teamDuration = ((DateTime)earliestSprint.StartDate).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
 
             var plannedEffort = (reportDuration / teamDuration) * teamEffort.Result;
             
@@ -541,7 +619,7 @@ namespace SkripsiAppBackend.UseCases
 
             var team = database.TrackedTeams.ReadByKey(organizationName, projectId, teamId);
 
-            var completedEffortTasks = reports.Select(async (report) => await CalculateReportCompletedEffort(
+            var completedEffortTasks = reports.Select(async (report) => await CalculateReportTotalEffort(
                 organizationName,
                 projectId,
                 teamId,
@@ -655,9 +733,29 @@ namespace SkripsiAppBackend.UseCases
 
         private async Task<double> CalculateReportCompletedEffort(string organizationName, string projectId, string teamId, DateTime startDate, DateTime endDate)
         {
-            var sprints = await GetTimespanSprints(organizationName, projectId, teamId, startDate, endDate);
+            var sprints = await GetTimespanSprints(
+                organizationName,
+                projectId,
+                teamId,
+                startDate,
+                endDate,
+                (workItems) => workItems.FindAll(workItem => workItem.State == IAzureDevopsService.WorkItemState.Done)
+            );
             var completedEffort = sprints.Aggregate(0d, (total, sprint) => total + sprint.AccountedEffort);
             return completedEffort;
+        }
+
+        private async Task<double> CalculateReportTotalEffort(string organizationName, string projectId, string teamId, DateTime startDate, DateTime endDate)
+        {
+            var sprints = await GetTimespanSprints(
+                organizationName,
+                projectId,
+                teamId,
+                startDate,
+                endDate
+            );
+            var totalEffort = sprints.Aggregate(0d, (total, sprint) => total + sprint.AccountedEffort);
+            return totalEffort;
         }
 
         private int CalculateEffortValue(int costPerEffort, double totalEffort)
