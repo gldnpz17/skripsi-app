@@ -2,15 +2,16 @@ import { useMutation, useQuery } from "react-query"
 import { IconButton } from "../Components/Common/IconButton"
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
 import { Format } from "../common/Format"
-import { Edit } from "../common/icons"
+import { Archive, Edit, Warning } from "../common/icons"
 import { useParams } from "react-router-dom"
-import { readTeamDetails, updateTeam } from "../api-requests/Teams"
+import { deleteTeam, readTeamDetails, updateTeam } from "../api-requests/Teams"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 import { DateTime } from "luxon"
 import { FormInput } from "../Components/Common/FormInput"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
+import { Button } from "../Components/Common/Button"
 
 const SectionTitle = ({ children }) => (
   <div className='text-sm items-center font-bold text-gray-400 mb-4'>
@@ -19,7 +20,7 @@ const SectionTitle = ({ children }) => (
 )
 
 const ReportsSection = ({ reportMetrics, availableReports, selectedTeam }) => (
-  <div>
+  <div className='mb-10'>
     <SectionTitle>Monthly Reports</SectionTitle>
     <div className='flex flex-col gap-4'>
       {availableReports?.map(report => (
@@ -37,6 +38,60 @@ const ReportsSection = ({ reportMetrics, availableReports, selectedTeam }) => (
     </div>
   </div>
 )
+
+const DangerSection = ({ team, details }) => {
+  const { 
+    mutateAsync: updateTeamAsync
+  } = useSimpleMutation(updateTeam, [['teams']])
+
+  const { 
+    mutateAsync: deleteTeamAsync
+  } = useSimpleMutation(deleteTeam, [['teams']])
+
+  const handleDelete = useCallback(async () => {
+    const reply = window.prompt(`Type '${details.team.name}' to confirm deletion.`)
+    if (!reply || reply !== details.team.name) return
+
+    await deleteTeamAsync(() => ({
+      organizationName: team.organization.name,
+      projectId: team.project.id,
+      teamId: team.id,
+    }))()
+
+    window.close()
+  }, [team])
+
+  return (
+    <div className='w-full border-red-500 border rounded-md p-6 bg-dark-2 mb-10'>
+      <div className='text-red-500 flex gap-2 items-center mb-4'>
+        <Warning className='h-6' />
+        <div className='font-bold'>Danger Zone</div>
+      </div>
+      <div className='flex gap-6 max-w-lg items-center mb-4'>
+        <Button 
+          onClick={updateTeamAsync(() => ({
+            organizationName: team.organization.name,
+            projectId: team.project.id,
+            teamId: team.id,
+            archived: true
+          }))}
+          className='w-20 bg-yellow-500 hover:bg-yellow-300'
+        >
+          Archive
+        </Button>
+        <div className='text-gray-300'>
+          The team will be hidden from the dashboard and you can't view or edit it unless it's restored.
+        </div>
+      </div>
+      <div className='flex gap-6 max-w-lg items-center'>
+        <Button onClick={handleDelete} className='w-20 bg-red-500 hover:bg-red-300'>Delete</Button>
+        <div className='text-gray-300'>
+          The team will be deleted from the database. This action is <b>irreversible</b>.
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const RadioGroup = ({ label, options=[], value, onChange }) => {
   const getInputProps = useCallback((inputValue) => ({
@@ -66,8 +121,7 @@ const RadioGroup = ({ label, options=[], value, onChange }) => {
 
 const GeneralSection = ({ team }) => {
   const { 
-    mutateAsync: updateTeamAsync,
-    isLoading: updateTeamLoading
+    mutateAsync: updateTeamAsync
   } = useSimpleMutation(updateTeam, [['teams']])
 
   const reducer = (state, { field, data }) => {
@@ -148,6 +202,29 @@ const GeneralSection = ({ team }) => {
   )
 }
 
+const ArchivedSection = ({ team }) => {
+  const { 
+    mutateAsync: updateTeamAsync
+  } = useSimpleMutation(updateTeam, [['teams']])
+
+  return (
+    <div className='flex gap-2 border border-gray-700 rounded-md bg-dark-2 px-6 py-4 items-center'>
+      <Archive className='h-6' />
+      <div className='flex-grow'>This team is archived</div>
+      <Button
+        onClick={updateTeamAsync(() => ({
+          organizationName: team.organization.name,
+          projectId: team.project.id,
+          teamId: team.id,
+          archived: false
+        }))}
+      >
+        Restore
+      </Button>
+    </div>
+  )
+}
+
 const TeamDetailsPage = () => {
   const { organizationName, projectId, teamId } = useParams()
 
@@ -195,21 +272,33 @@ const TeamDetailsPage = () => {
       {!detailsLoading && (
         <>
           <h1 className='text-2xl mb-6'>Team Settings - {details.team.name}</h1>
-          <GeneralSection team={details.team} />
+          {details.team.archived && (
+            <ArchivedSection {...{ team }} />
+          )}
+          {!details.team.archived && (
+            <GeneralSection team={details.team} />
+          )}
         </>
       )}
       {!reportsLoading && !availableReportsLoading && (
         <>
-          {reportsError && (
+          {reportsError && !details.team.archived && (
             <ErrorPlaceholder
-              className='col-span-12 mb-8'
+              className='col-span-12 mb-10'
               message='Unable to display report list.'
               errorCode={reportsError.response.data}
               {...{ team }}
             />
           )}
-          {!reportsError && (
+          {!reportsError && !details.team.archived && (
             <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
+          )}
+        </>
+      )}
+      {!detailsLoading && (
+        <>
+          {!details.team.archived && (
+            <DangerSection {...{ team, details }} />
           )}
         </>
       )}

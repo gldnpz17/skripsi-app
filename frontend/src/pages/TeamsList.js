@@ -6,6 +6,7 @@ import { useQuery } from "react-query"
 import { Skeleton } from "../Components/Common/Skeleton"
 import { useEffect, useState } from "react"
 import { DataGrid } from "@mui/x-data-grid"
+import { Archive } from "../common/icons"
 
 const Loading = () => (
   <LinearProgress color='inherit' className='text-primary-dark' />
@@ -21,7 +22,15 @@ const TeamsListPage = () => {
     { 
       field: 'teamName', 
       headerName: 'Team', 
-      width: 200 
+      width: 200,
+      renderCell: ({ row: { team } }) => (
+        <div className='flex gap-2 items-center'>
+          <div>{team.name}</div>
+          {team.archived && (
+            <Archive className='h-4 text-primary-dark' />
+          )}
+        </div>
+      )
     },
     {
       field: 'projectName',
@@ -73,6 +82,7 @@ const TeamsListPage = () => {
     (async () => {
       const rows = await Promise.all(
         teams
+          .sort((a, b) => a.archived === b.archived ? -1 : 1)
           .map(async (team) => {
             const teamId = team.id
             const projectId = team.project.id

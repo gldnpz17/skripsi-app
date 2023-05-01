@@ -33,7 +33,6 @@ SELECT tracked_teams.* FROM tracked_teams
         tracked_teams.project_id = primary_keys.project_id AND
         tracked_teams.team_id = primary_keys.team_id
     )
-    WHERE deleted = false;
 ";
 
             using var connection = GetConnection();
@@ -70,8 +69,7 @@ SELECT tracked_teams.* FROM tracked_teams
 SELECT * FROM tracked_teams WHERE 
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
-    team_id = @TeamId AND
-    deleted = false;
+    team_id = @TeamId
 ";
 
             using var connection = GetConnection();
@@ -90,8 +88,6 @@ SELECT * FROM tracked_teams WHERE
             var sql = @"
 INSERT INTO tracked_teams (organization_name, project_id, team_id)
 VALUES (@OrganizationName, @ProjectId, @TeamId)
-ON CONFLICT ON CONSTRAINT pk_tracked_team DO UPDATE
-    SET deleted = false;
 ";
 
             using var connection = GetConnection();
@@ -109,12 +105,11 @@ ON CONFLICT ON CONSTRAINT pk_tracked_team DO UPDATE
         public async Task UntrackTeam(string organizationName, string projectId, string teamId)
         {
             var sql = @"
-UPDATE tracked_teams
-SET deleted = true 
+DELETE FROM tracked_teams
 WHERE 
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
-    teamId = @TeamId;
+    team_id = @TeamId;
 ";
 
             using var connection = GetConnection();
@@ -136,14 +131,16 @@ WHERE
             DateTime? deadline,
             int? costPerEffort,
             string? eacFormula,
-            string? etcFormula)
+            string? etcFormula,
+            bool? archived)
         {
             var sql = @$"
 UPDATE tracked_teams SET
     deadline = COALESCE(@Deadline, deadline),
     cost_per_effort = COALESCE(@CostPerEffort, cost_per_effort),
     eac_formula = COALESCE(@EacFormula, eac_formula),
-    etc_formula = COALESCE(@EtcFormula, etc_formula)
+    etc_formula = COALESCE(@EtcFormula, etc_formula),
+    archived = COALESCE(@Archived, archived)
 WHERE
     organization_name = @OrganizationName AND
     project_id = @ProjectId AND
@@ -160,7 +157,8 @@ WHERE
                 Deadline = deadline,
                 CostPerEffort = costPerEffort,
                 EacFormula = eacFormula,
-                EtcFormula = etcFormula
+                EtcFormula = etcFormula,
+                Archived = archived
             };
 
             await connection.ExecuteAsync(sql, args);

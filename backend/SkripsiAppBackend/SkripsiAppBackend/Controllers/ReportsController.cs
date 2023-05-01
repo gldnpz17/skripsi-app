@@ -167,6 +167,23 @@ namespace SkripsiAppBackend.Controllers
             return await metricCalculations.ListAvailableReports(organizationName, projectId, teamId);
         }
 
+        [Route("{reportId}")]
+        [HttpDelete]
+        public async Task<ActionResult> DeleteReport([FromRoute] int reportId)
+        {
+            var report = await database.Reports.ReadReport(reportId);
+
+            var authorization = await authorizationService.AllowTeamMembers(database, User, report.OrganizationName, report.ProjectId, report.TeamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            await database.Reports.DeleteReport(reportId);
+
+            return Ok();
+        }
+
         [Route("/api/teams/{organizationName}/{projectId}/{teamId}/reports/timespan-sprints")]
         [HttpGet]
         public async Task<ActionResult<List<MetricCalculations.ReportSprint>>> ReadTimespanSprints(

@@ -86,7 +86,7 @@ const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading, teamPinned, to
       {!teamsLoading && (
         <>
           <div className='flex flex-col gap-4 mb-6'>
-            {teams.map(team => (
+            {teams.filter(team => !team.archived).map(team => (
               <TeamListItem
                 key={team.id}
                 selected={false}

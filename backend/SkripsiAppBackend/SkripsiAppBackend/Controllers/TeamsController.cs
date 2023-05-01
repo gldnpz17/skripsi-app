@@ -51,6 +51,7 @@ namespace SkripsiAppBackend.Controllers
             public int? CostPerEffort { get; set; }
             public string EacFormula { get; set; }
             public string EtcFormula { get; set; }
+            public bool Archived { get; set; }
             public IAzureDevopsService.Organization Organization { get; set; }
             public IAzureDevopsService.Project Project { get; set; }
 
@@ -222,6 +223,7 @@ namespace SkripsiAppBackend.Controllers
                 CostPerEffort = trackedTeamTask.Result.CostPerEffort,
                 EacFormula = trackedTeamTask.Result.EacFormula,
                 EtcFormula = trackedTeamTask.Result.EtcFormula,
+                Archived = trackedTeamTask.Result.Archived,
                 Organization = new IAzureDevopsService.Organization()
                 {
                     Name = organizationName
@@ -250,16 +252,19 @@ namespace SkripsiAppBackend.Controllers
             return Ok();
         }
 
-        [HttpDelete]
-        public async Task<ActionResult> UntrackTeam([FromBody] TrackTeamDto dto)
+        [HttpDelete("{organizationName}/{projectId}/{teamId}")]
+        public async Task<ActionResult> UntrackTeam(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
         {
-            var authorization = await authorizationService.AllowTeamMembers(database, User, dto.OrganizationName, dto.ProjectId, dto.TeamId);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
             if (!authorization.Succeeded)
             {
                 return Unauthorized();
             }
 
-            await database.TrackedTeams.UntrackTeam(dto.OrganizationName, dto.ProjectId, dto.TeamId);
+            await database.TrackedTeams.UntrackTeam(organizationName, projectId, teamId);
 
             return Ok();
         }
@@ -270,6 +275,7 @@ namespace SkripsiAppBackend.Controllers
             public int? CostPerEffort { get; set; }
             public string? EacFormula { get; set; }
             public string? EtcFormula { get; set; }
+            public bool? Archived { get; set; }
         }
 
         [HttpPatch("{organizationName}/{projectId}/{teamId}")]
@@ -292,7 +298,8 @@ namespace SkripsiAppBackend.Controllers
                                                    dto.Deadline,
                                                    dto.CostPerEffort,
                                                    dto.EacFormula,
-                                                   dto.EtcFormula);
+                                                   dto.EtcFormula,
+                                                   dto.Archived);
 
             return Ok();
         }

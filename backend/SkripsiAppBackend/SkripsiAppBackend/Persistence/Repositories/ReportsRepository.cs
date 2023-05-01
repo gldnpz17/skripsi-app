@@ -82,5 +82,19 @@ SELECT * FROM reports WHERE
 
             return ModelMapper.MapTo<Report>(await connection.QuerySingleOrDefaultAsync(sql, args));
         }
+
+        public async Task DeleteReport(int id)
+        {
+            var sql = @"DELETE FROM reports WHERE id = @Id;";
+
+            using var connection = GetConnection();
+
+            var args = new
+            {
+                Id = id
+            };
+
+            await connection.ExecuteAsync(sql, args);
+        } 
     }
 }

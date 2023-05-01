@@ -9,7 +9,7 @@ namespace SkripsiAppBackend.Persistence.Models
         public string OrganizationName { get; set; }
         public DateTime? Deadline { get; set; }
         public int? CostPerEffort { get; set; }
-        public bool Deleted { get; set; }
+        public bool Archived { get; set; }
         public string EacFormula { get; set; }
         public string EtcFormula { get; set; }
     }
