@@ -3,7 +3,6 @@ import './App.css';
 import { BrowserRouter, createBrowserRouter, Route, Routes } from 'react-router-dom';
 import { DashboardPage } from './pages/Dashboard';
 import { LoginPage } from './pages/Login';
-import { ConfigurationPage } from './pages/Configuration';
 import { LayoutSidebar } from './Layout/Sidebar';
 import { OAuthSuccessPage } from './pages/OAuthSuccess';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -31,7 +30,6 @@ function App() {
           <Routes>
             <Route path='/' element={<LayoutSidebar />}>
               <Route path='/' element={<DashboardPage />} />
-              <Route path='configuration' element={<ConfigurationPage />} />
               <Route path='track-new' element={<TrackNewTeamPage />} />
               <Route path='/teams' element={<TeamsListPage />} />
               <Route path='teams/:organizationName/:projectId/:teamId' element={<TeamDetailsPage />} />
