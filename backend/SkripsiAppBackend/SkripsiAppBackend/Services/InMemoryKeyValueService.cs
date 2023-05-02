@@ -1,12 +1,14 @@
-﻿namespace SkripsiAppBackend.Services
+﻿using System.Collections.Concurrent;
+
+namespace SkripsiAppBackend.Services
 {
     public class InMemoryKeyValueService : IKeyValueService
     {
-        private readonly Dictionary<string, string> keyValuePairs = new();
+        private readonly ConcurrentDictionary<string, string> keyValuePairs = new();
 
         public void Delete(string key)
         {
-            keyValuePairs.Remove(key);
+            keyValuePairs.Remove(key, out _);
         }
 
         public string Get(string key)

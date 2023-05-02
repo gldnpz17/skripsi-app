@@ -14,6 +14,7 @@ import { TitleSection } from "../Components/ReportCommon/TitleSection"
 import { SprintsSection } from "../Components/ReportCommon/SprintSection"
 import { DataSection } from "../Components/ReportCommon/DataSection"
 import { MetricsSection } from "../Components/ReportCommon/MetricSection"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const ActionSection = ({ organizationName, projectId, teamId, start, end, expenditure }) => {
   const onSuccess = () => window.close()
@@ -41,7 +42,7 @@ const ActionSection = ({ organizationName, projectId, teamId, start, end, expend
   )
 }
 
-const NewReportPage = () => {
+const Page = () => {
   const { organizationName, projectId, teamId } = useParams()
   const { start, end } = useQueryParams()
 
@@ -78,5 +79,7 @@ const NewReportPage = () => {
     </div>
   )
 }
+
+const NewReportPage = withAuth(Page)
 
 export { NewReportPage }

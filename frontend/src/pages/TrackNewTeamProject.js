@@ -6,6 +6,7 @@ import { CheckSolid, Organization } from "../common/icons"
 import { Button } from "../Components/Common/Button"
 import { Spinner } from "../Components/Common/Spinner"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const ProjectButton = ({ 
   project: {
@@ -118,7 +119,7 @@ const TeamSelectionSection = ({ project, unselectProject }) => {
   )
 }
 
-const TrackNewTeamPage = () => {
+const Page = () => {
   const [project, setProject] = useState(null)
 
   const selectProject = useCallback((project) => {
@@ -143,5 +144,7 @@ const TrackNewTeamPage = () => {
     </div>
   )
 }
+
+const TrackNewTeamPage = withAuth(Page)
 
 export { TrackNewTeamPage }

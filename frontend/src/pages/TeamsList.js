@@ -7,12 +7,13 @@ import { Skeleton } from "../Components/Common/Skeleton"
 import { useEffect, useState } from "react"
 import { DataGrid } from "@mui/x-data-grid"
 import { Archive } from "../common/icons"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const Loading = () => (
   <LinearProgress color='inherit' className='text-primary-dark' />
 )
 
-const TeamsListPage = () => {
+const Page = () => {
   const {
     data: teams,
     isLoading: teamsLoading
@@ -80,9 +81,10 @@ const TeamsListPage = () => {
     if (!teams) return
 
     (async () => {
+      console.log(teams)
       const rows = await Promise.all(
         teams
-          .sort((a, b) => a.archived === b.archived ? -1 : 1)
+          .sort((a, b) => (a.archived === b.archived) ? 0 : a.archived ? 1 : -1)
           .map(async (team) => {
             const teamId = team.id
             const projectId = team.project.id
@@ -131,5 +133,7 @@ const TeamsListPage = () => {
     </div>
   )
 }
+
+const TeamsListPage = withAuth(Page)
 
 export { TeamsListPage }

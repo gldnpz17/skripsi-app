@@ -12,6 +12,7 @@ import { FormInput } from "../Components/Common/FormInput"
 import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Button } from "../Components/Common/Button"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const SectionTitle = ({ children }) => (
   <div className='text-sm items-center font-bold text-gray-400 mb-4'>
@@ -80,7 +81,7 @@ const DangerSection = ({ team, details }) => {
           Archive
         </Button>
         <div className='text-gray-300'>
-          The team will be hidden from the dashboard and you can't view or edit it unless it's restored.
+          The team will be hidden from the dashboard and you can't view it unless it's restored.
         </div>
       </div>
       <div className='flex gap-6 max-w-lg items-center'>
@@ -225,7 +226,7 @@ const ArchivedSection = ({ team }) => {
   )
 }
 
-const TeamDetailsPage = () => {
+const Page = () => {
   const { organizationName, projectId, teamId } = useParams()
 
   const { data: details, isLoading: detailsLoading } = useQuery(
@@ -305,5 +306,7 @@ const TeamDetailsPage = () => {
     </div>
   )
 }
+
+const TeamDetailsPage = withAuth(Page)
 
 export { TeamDetailsPage }

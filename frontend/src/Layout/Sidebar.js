@@ -8,7 +8,7 @@ const SidebarItem = ({ icon, label, href, pathMatch }) => {
 
   return (
     <Link to={href} className='h-6 flex gap-2 group'>
-      <span className={`h-6 aspect-square group-hover:text-secondary-light group-hover:rotate-12 duration-150 ${Boolean(match) ? 'text-secondary-dark' : 'text-gray-300'}`}>
+      <span className={`h-6 aspect-square group-hover:text-secondary-light duration-150 ${Boolean(match) ? 'text-secondary-dark' : 'text-gray-300'}`}>
         {icon}
       </span>
       <span className={`flex-grow group-hover:text-white ${Boolean(match) ? 'text-white' : 'text-gray-300'}`}>

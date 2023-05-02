@@ -13,6 +13,7 @@ import { NewReportPage } from './pages/NewReport';
 import { EditReportPage } from './pages/EditReport';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { AuthProvider } from './HigherOrderComponents/withAuth';
 
 const queryClient = new QueryClient()
 const darkTheme = createTheme({
@@ -26,20 +27,22 @@ function App() {
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            <Route path='/' element={<LayoutSidebar />}>
-              <Route path='/' element={<DashboardPage />} />
-              <Route path='track-new' element={<TrackNewTeamPage />} />
-              <Route path='/teams' element={<TeamsListPage />} />
-              <Route path='teams/:organizationName/:projectId/:teamId' element={<TeamDetailsPage />} />
-              <Route path='teams/:organizationName/:projectId/:teamId/reports/create' element={<NewReportPage />} />
-              <Route path='team/:organizationName/:projectId/:teamId/reports/:reportId/edit' element={<EditReportPage />} />
-            </Route>
-            <Route path='login' element={<LoginPage />} />
-            <Route path='oauth-success' element={<OAuthSuccessPage />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path='/' element={<LayoutSidebar />}>
+                <Route path='/' element={<DashboardPage />} />
+                <Route path='track-new' element={<TrackNewTeamPage />} />
+                <Route path='/teams' element={<TeamsListPage />} />
+                <Route path='teams/:organizationName/:projectId/:teamId' element={<TeamDetailsPage />} />
+                <Route path='teams/:organizationName/:projectId/:teamId/reports/create' element={<NewReportPage />} />
+                <Route path='team/:organizationName/:projectId/:teamId/reports/:reportId/edit' element={<EditReportPage />} />
+              </Route>
+              <Route path='login' element={<LoginPage />} />
+              <Route path='oauth-success' element={<OAuthSuccessPage />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   )

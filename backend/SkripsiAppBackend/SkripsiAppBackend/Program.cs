@@ -38,7 +38,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton(applicationConfiguration);
-builder.Services.AddScoped<IKeyValueService, InMemoryKeyValueService>();
+builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddScoped<AccessTokenService>();
 
 builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));

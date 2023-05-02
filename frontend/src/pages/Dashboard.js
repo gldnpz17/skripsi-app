@@ -16,6 +16,7 @@ import { ExternalLink } from "../Components/Common/ExternalLink"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Skeleton } from "../Components/Common/Skeleton"
 import { usePersistedValue } from "../Hooks/usePersistedState"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const PinButton = ({ pinned, parentHovered, togglePin }) => {
   const [hovered, setHovered] = useState(false)
@@ -476,7 +477,7 @@ const NoSelectedTeamPlaceholder = () => (
   </div>
 )
 
-const DashboardPage = () => {
+const Page = () => {
   const {
     data: teams,
     isLoading: teamsLoading
@@ -541,5 +542,7 @@ const DashboardPage = () => {
     </div>
   )
 }
+
+const DashboardPage = withAuth(Page)
 
 export { DashboardPage }

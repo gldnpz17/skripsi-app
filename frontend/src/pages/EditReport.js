@@ -10,6 +10,7 @@ import { TitleSection } from "../Components/ReportCommon/TitleSection"
 import { SprintsSection } from "../Components/ReportCommon/SprintSection"
 import { DataSection } from "../Components/ReportCommon/DataSection"
 import { MetricsSection } from "../Components/ReportCommon/MetricSection"
+import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const ActionSection = ({ reportId, expenditure }) => {
   const onSuccess = () => window.close()
@@ -33,7 +34,7 @@ const ActionSection = ({ reportId, expenditure }) => {
   )
 }
 
-const EditReportPage = () => {
+const Page = () => {
   const { organizationName, projectId, teamId, reportId } = useParams()
 
   const [{ start, end, expenditure }, setState] = useState({
@@ -90,5 +91,7 @@ const EditReportPage = () => {
     </div>
   )
 }
+
+const EditReportPage = withAuth(Page)
 
 export { EditReportPage }
