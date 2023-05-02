@@ -18,9 +18,7 @@ import { Skeleton } from "../Components/Common/Skeleton"
 import { usePersistedValue } from "../Hooks/usePersistedState"
 import { withAuth } from "../HigherOrderComponents/withAuth"
 
-const PinButton = ({ pinned, parentHovered, togglePin }) => {
-  const [hovered, setHovered] = useState(false)
-
+const PinButton = ({ pinned, togglePin }) => {
   const onClick = (e) => {
     e.stopPropagation()
     togglePin()
@@ -28,49 +26,37 @@ const PinButton = ({ pinned, parentHovered, togglePin }) => {
 
   return (
     <button
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={`${pinned ? 'block' : 'hidden group-hover/item:block'}`}
       {...{ onClick }}
     >
-      {pinned && !hovered && (
-        <PinFilled className='h-4' />
+      {pinned && (
+        <div className='group/button'>
+          <PinFilled className='h-4 block group-hover/button:hidden' />
+          <PinFilledOff className='h-4 hidden group-hover/button:block' />
+        </div>
       )}
-      {parentHovered && (
-        <>
-          {pinned && hovered && (
-            <PinFilledOff className='h-4' />
-          )}
-          {!pinned && !hovered && (
-            <PinOutline className='h-4' />
-          )}
-          {!pinned && hovered && (
-            <PinFilled className='h-4' />
-          )}
-        </>
+      {!pinned && (
+        <div className='group/button'>
+          <PinOutline className='h-4 block group-hover/button:hidden' />
+          <PinFilled className='h-4 hidden group-hover/button:block' />
+        </div>
       )}
     </button>
   )
 }
 
 const TeamListItem = ({ team: { name }, selected = false, onClick, pinned, togglePin }) => {
-  const [hovered, setHovered] = useState(false)
-
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       {...{ onClick }}
-      className='group relative border border-gray-700 rounded-md cursor-pointer overflow-hidden duration-150 hover:brightness-125 bg-dark-2'
+      className='group/item relative border border-gray-700 rounded-md cursor-pointer overflow-hidden duration-150 hover:brightness-125 bg-dark-2'
     >
       <div className={`absolute top-0 bottom-0 left-0 w-1 ${selected && 'bg-secondary-dark'} duration-150`} />
       <span className='px-4 py-2 flex'>
         <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
           {name}
         </span>
-        <PinButton
-          parentHovered={hovered}
-          {...{ pinned, togglePin }}
-        />
+        <PinButton {...{ pinned, togglePin }} />
         {/* TODO: Implement health status icons. */}
         {/* <span className={`${Format.statusColor('Healthy', 'text-')}`}>
           {Format.status('Healthy')}
