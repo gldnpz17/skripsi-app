@@ -1,27 +1,39 @@
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "react-query"
-import { readAllProjects, readAllProjects as readAllTeams } from "../api-requests/Projects"
+import { readProjectsByOrganization } from "../api-requests/Projects"
 import { readUntrackedTeams, trackTeam } from "../api-requests/Teams"
 import { CheckSolid, Organization } from "../common/icons"
 import { Button } from "../Components/Common/Button"
 import { Spinner } from "../Components/Common/Spinner"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { withAuth } from "../HigherOrderComponents/withAuth"
+import { readAllOrganizations } from "../api-requests/Organizations"
+import { FormInput, FormInputSimple } from "../Components/Common/FormInput"
 
-const ProjectButton = ({ 
-  project: {
-    name: projectName,
-    organization: {
-      name: organizationName
-    }
-  },
-  onClick
-}) => (
+const useSearch = (data, getProperty) => {
+  const [keyword, setKeyword] = useState('')
+
+  const filteredData = useMemo(() => {
+    if (!data) return null
+
+    return data.filter(datum => getProperty(datum).includes(keyword))
+  }, [data, getProperty, keyword])
+
+  return [filteredData, setKeyword]
+}
+
+const OptionButton = ({ label, onClick }) => (
   <div className={`flex items-center select-none bg-dark-2 py-3 px-6 rounded-md border border-gray-700 duration-150 ${onClick && 'cursor-pointer hover:brightness-125'}`} {...{ onClick }}>
-    <span className='mr-4 font-bold flex-grow'>{projectName}</span>
-    <Organization className='h-4 mr-2' />
-    <span>{organizationName}</span>
+    <span className='mr-4 font-bold flex-grow'>{label}</span>
   </div>
+)
+
+const OrganizationButton = ({ organization: { name }, onClick }) => (
+  <OptionButton label={name} {...{ onClick }} />
+)
+
+const ProjectButton = ({ project: { name }, onClick }) => (
+  <OptionButton label={name} {...{ onClick }} />
 )
 
 const TeamButton = ({ team: { name }, selected, onClick }) => (
@@ -34,19 +46,32 @@ const TeamButton = ({ team: { name }, selected, onClick }) => (
   </div>
 )
 
-const ProjectSelectionSection = ({ selectProject }) => {
-  const { 
-    isLoading: projectsLoading,
-    data: projects
-  } = useQuery(['projects'], readAllProjects)
+const OrganizationSelectionSection = ({ setOrganization }) => {
+  const { isLoading, data } = useQuery(['organizations'], readAllOrganizations)
+  const [organizations, setKeyword] = useSearch(data, (organization) => organization.name)
 
   return (
     <div>
-      <div className='mb-4'>Select a project</div>
-      {!projectsLoading && (
+      <div className='flex mb-4 items-center'>
+        <div className='flex-grow'>Select an organization</div>
+        <FormInputSimple
+          type='text'
+          label='Search'
+          className='w-full'
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+      </div>
+      {!isLoading && organizations.length === 0 && (
+        <div className='text-gray-500 text-center'>No organizations to select from</div>
+      )}
+      {!isLoading && (
         <div className='flex flex-col gap-2'>
-          {projects.map(project => (
-            <ProjectButton key={project.id} {...{ project }} onClick={() => selectProject(project)} />
+          {organizations.map(organization => (
+            <OrganizationButton
+              key={organization.name}
+              onClick={() => setOrganization(organization)}
+              {...{ organization }}
+            />
           ))}
         </div>
       )}
@@ -54,11 +79,55 @@ const ProjectSelectionSection = ({ selectProject }) => {
   )
 }
 
-const TeamSelectionSection = ({ project, unselectProject }) => {
-  const { data: teams, isLoading: teamsLoading } = useQuery(
+const ProjectSelectionSection = ({ organization, setProject, setOrganization }) => {
+  const { isLoading, data } = useQuery(['projects'], async () => readProjectsByOrganization({ organizationName: organization.name }))
+  const [projects, setKeyword] = useSearch(data, (project) => project.name)
+
+  return (
+    <div>
+      {!isLoading && (
+        <div>
+          <div className='mb-4'>Select a project</div>
+          <div className='mb-2 text-sm'>Selected organization</div>
+          <div className='mb-6'>
+            <OrganizationButton {...{ organization }} />
+          </div>
+          <div className='flex mb-4 items-center'>
+            <div className='flex-grow'>Select a project</div>
+            <FormInputSimple
+              type='text'
+              label='Search'
+              className='w-full'
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </div>
+          {projects.length === 0 && (
+            <div className='text-gray-500 text-center'>No projects to select from</div>
+          )}
+          <div className='flex flex-col gap-2 mb-8'>
+            {projects.map(project => (
+              <ProjectButton
+                key={project.id}
+                onClick={() => setProject(project)}
+                {...{ project }} 
+              />
+            ))}
+          </div>
+          <div>
+            <Button onClick={() => setOrganization(null)}>Back</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TeamSelectionSection = ({ organization, project, setProject }) => {
+  const { data, isLoading } = useQuery(
     ['teams', 'untracked', project],
     async () => await readUntrackedTeams({ projectId: project.id })
   )
+  const [teams, setKeyword] = useSearch(data, (project) => project.name)
 
   const [selectedTeam, setSelectedTeam] = useState(null)
 
@@ -78,12 +147,27 @@ const TeamSelectionSection = ({ project, unselectProject }) => {
 
   return (
     <div>
-      <div className='mb-4'>Selected project</div>
+      <div className='mb-2 text-sm'>Selected organization</div>
+      <div className='mb-3'>
+        <OrganizationButton {...{ organization }} />
+      </div>
+      <div className='mb-2 text-sm'>Selected project</div>
       <div className='mb-6'>
         <ProjectButton {...{ project }} />
       </div>
-      <div className='mb-4'>Select a team</div>
-      {!teamsLoading && (
+      <div className='flex mb-4 items-center'>
+        <div className='flex-grow'>Select a team</div>
+        <FormInputSimple
+          type='text'
+          label='Search'
+          className='w-full'
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+      </div>
+      {!isLoading && teams.length === 0 && (
+        <div className='text-gray-500 text-center'>No teams to select from</div>
+      )}
+      {!isLoading && (
         <>
           <div className='mb-8 flex flex-col gap-2'>
             {teams.map(team => (
@@ -96,7 +180,7 @@ const TeamSelectionSection = ({ project, unselectProject }) => {
             ))}
           </div>
           <div className='flex justify-between'>
-            <Button onClick={unselectProject}>
+            <Button onClick={() => setProject(null)}>
               Back
             </Button>
             <Button
@@ -120,25 +204,21 @@ const TeamSelectionSection = ({ project, unselectProject }) => {
 }
 
 const Page = () => {
+  const [organization, setOrganization] = useState(null)
   const [project, setProject] = useState(null)
-
-  const selectProject = useCallback((project) => {
-    setProject(project)
-  }, [])
-
-  const unselectProject = useCallback(() => {
-    setProject(null)
-  })
 
   return (
     <div>
-      <h1 className='mt-8 text-2xl mb-6'>Track New Team (Step {project ? '2' : '1'}/2)</h1>
+      <h1 className='mt-8 text-2xl mb-6'>Track New Team (Step {!organization ? '1' : !project ? '2' : '3'}/3)</h1>
       <div className='w-[36rem]'>
-        {!project && (
-          <ProjectSelectionSection {...{ selectProject }} />
+        {!organization && (
+          <OrganizationSelectionSection {...{ setOrganization }} />
+        )}
+        {!project && organization && (
+          <ProjectSelectionSection {...{ organization, setProject, setOrganization }} />
         )}
         {project && (
-          <TeamSelectionSection {...{ project, unselectProject }} />
+          <TeamSelectionSection {...{ organization, project, setProject }} />
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using System.Security.Cryptography.X509Certificates;
+using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -18,42 +19,13 @@ namespace SkripsiAppBackend.Controllers
             this.azureDevopsService = azureDevopsService;
         }
 
-        public struct Project
-        {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public IAzureDevopsService.Organization Organization { get; set; }
-            
-        }
-
-        [HttpGet]
+        [HttpGet("/api/organizations/{organizationName}/projects")]
         [Authorize(Policy = AuthorizationPolicies.AllowAuthenticated)]
-        public async Task<ActionResult<List<Project>>> ReadAllProjects()
+        public async Task<ActionResult<List<Project>>> ReadOrganizationProjects([FromRoute] string organizationName)
         {
-            var organizations = await azureDevopsService.ReadAllOrganizations();
+            var projects = await azureDevopsService.ReadProjectsByOrganization(organizationName);
 
-            var projects =
-                (await Task.WhenAll(
-                    organizations.Select(organization =>
-                    {
-                        return Task.Run(async () =>
-                        {
-                            var projects = await azureDevopsService.ReadProjectsByOrganization(organization.Name);
-
-                            return projects
-                                .Select(project => new Project()
-                                {
-                                    Id = project.Id,
-                                    Name = project.Name,
-                                    Organization = organization
-                                })
-                                .ToList();
-                        });
-                    })
-                ))
-                .SelectMany((List<Project> project) => project);
-
-            return projects.ToList();
+            return projects;
         }
     }
 }

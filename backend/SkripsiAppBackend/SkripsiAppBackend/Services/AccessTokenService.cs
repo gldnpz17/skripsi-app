@@ -3,6 +3,7 @@ using SkripsiAppBackend.Common;
 using Flurl.Http;
 using SkripsiAppBackend.Common.Authentication;
 using System.Security.Claims;
+using System.Collections.Concurrent;
 
 namespace SkripsiAppBackend.Services
 {
@@ -13,8 +14,8 @@ namespace SkripsiAppBackend.Services
         {
             this.configuration = configuration;
         }
-        private Dictionary<string, string> accessTokens = new();
-        private Dictionary<string, Task> lifetimeTasks = new();
+        private ConcurrentDictionary<string, string> accessTokens = new();
+        private ConcurrentDictionary<string, Task> lifetimeTasks = new();
         public async Task<string> GetToken(string refreshToken)
         {
             if (!lifetimeTasks.ContainsKey(refreshToken))
@@ -34,10 +35,10 @@ namespace SkripsiAppBackend.Services
                 {
                     await Task.Delay(configuration.AccessTokenLifetime);
 
-                    accessTokens.Remove(refreshToken);
+                    accessTokens.Remove(refreshToken, out _);
 
                     var task = lifetimeTasks[refreshToken];
-                    lifetimeTasks.Remove(refreshToken);
+                    lifetimeTasks.Remove(refreshToken, out _);
                 });
 
                 accessTokens[refreshToken] = result.access_token;

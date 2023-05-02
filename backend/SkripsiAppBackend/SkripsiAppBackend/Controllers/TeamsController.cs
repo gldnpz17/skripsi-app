@@ -239,14 +239,9 @@ namespace SkripsiAppBackend.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = AuthorizationPolicies.AllowAuthenticated)]
         public async Task<ActionResult> TrackTeam([FromBody] TrackTeamDto dto)
         {
-            var authorization = await authorizationService.AllowTeamMembers(database, User, dto.OrganizationName, dto.ProjectId, dto.TeamId);
-            if (!authorization.Succeeded)
-            {
-                return Unauthorized();
-            }
-
             await database.TrackedTeams.CreateTrackedTeam(dto.OrganizationName, dto.ProjectId, dto.TeamId);
             
             return Ok();

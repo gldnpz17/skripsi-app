@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const readAllProjects = async () => await (await axios.get('/api/projects')).data
+const readProjectsByOrganization = async ({ organizationName }) => await (await axios.get(`/api/organizations/${organizationName}/projects`)).data
 
 export {
-  readAllProjects
+  readProjectsByOrganization
 }
