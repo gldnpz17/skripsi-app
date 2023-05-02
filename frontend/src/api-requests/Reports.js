@@ -59,6 +59,8 @@ const readTimespanSprints = async ({ organizationName, projectId, teamId, start,
 const readReportMetrics = async ({ organizationName, projectId, teamId, start, end, expenditure }) =>
   (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/reports/new-report-metrics?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&expenditure=${expenditure}`)).data
 
+const deleteReport = async ({ reportId }) => await axios.delete(`/api/reports/${reportId}`)
+
 export { 
   readTeamReports,
   readReportById,
@@ -66,5 +68,6 @@ export {
   updateReport,
   readAvailableReports,
   readTimespanSprints,
-  readReportMetrics
+  readReportMetrics,
+  deleteReport
 }

@@ -2,7 +2,7 @@ import { useQuery } from "react-query"
 import { Button } from "../Components/Common/Button"
 import { Save } from "../common/icons"
 import { useCallback, useEffect, useState } from "react"
-import { createReport, readReportById, readTimespanSprints, updateReport } from "../api-requests/Reports"
+import { createReport, deleteReport, readReportById, readTimespanSprints, updateReport } from "../api-requests/Reports"
 import { useParams } from "react-router-dom"
 import { useQueryParams } from "../Hooks/useQueryParams"
 import { useSimpleMutation } from "../Hooks/useSimpleMutation"
@@ -15,12 +15,25 @@ import { withAuth } from "../HigherOrderComponents/withAuth"
 const ActionSection = ({ reportId, expenditure }) => {
   const onSuccess = () => window.close()
 
-  const { mutateAsync } = useSimpleMutation(updateReport, [['teams', 'report']], { onSuccess })
+  const { mutateAsync: updateAsync } = useSimpleMutation(updateReport, [['teams', 'report']], { onSuccess })
+  const { mutateAsync: deleteAsync } = useSimpleMutation(deleteReport, [['teams', 'report']], { onSuccess })
+
+  const handleDelete = () => {
+    const confirmed = window.confirm('Delete this report?')
+
+    if (confirmed) {
+      deleteAsync(() => ({ reportId }))()
+    }
+  }
 
   return (
-    <div className='flex justify-end max-w-2xl'>
+    <div className='flex max-w-2xl'>
+      <Button overrideColor onClick={handleDelete} className='bg-red-500 hover:bg-red-300'>
+        Delete
+      </Button>
+      <div className='flex-grow'></div>
       <Button
-        onClick={mutateAsync(() => ({
+        onClick={updateAsync(() => ({
           id: reportId,
           report: {
             expenditure
