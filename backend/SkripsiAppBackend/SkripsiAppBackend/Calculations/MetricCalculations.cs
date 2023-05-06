@@ -1,4 +1,5 @@
-﻿using SkripsiAppBackend.Common.Exceptions;
+﻿using Microsoft.IdentityModel.Tokens;
+using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Controllers;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Models;
@@ -190,6 +191,13 @@ namespace SkripsiAppBackend.UseCases
             public List<WorkItem> WorkItems { get; set; }
         }
 
+        public struct TeamTimeline
+        {
+            public DateTime? StartDate { get; set; }
+            public DateTime? Deadline { get; set; }
+            public DateTime? EstimatedCompletion { get; set; }
+            public List<string> ErrorCodes { get; set; }
+        }
 
         public enum EstimateToCompletionFormulas
         {
@@ -226,6 +234,26 @@ namespace SkripsiAppBackend.UseCases
 
                 return default;
             }
+        }
+
+        public async Task<TeamTimeline> CalculateTeamTimeline(string organizationName, string projectId, string teamId)
+        {
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+
+            var teamTask = database.TrackedTeams.ReadByKey(teamKey);
+            var startDateTask = GetTeamStartDate(organizationName, projectId, teamId);
+
+            await Task.WhenAll(teamTask);
+
+            var startDate = startDateTask.Result;
+            var deadline = teamTask.Result.Deadline;
+
+
+            return new TeamTimeline()
+            {
+                StartDate = startDate,
+                Deadline = deadline
+            };
         }
 
         public async Task<double> CalculateTeamEffort(string organizationName, string projectId, string teamId)
@@ -563,25 +591,16 @@ namespace SkripsiAppBackend.UseCases
             var workDays = azureDevopsService.ReadTeamWorkDays(organizationName, projectId, teamId);
             var teamEffort = CalculateTeamEffort(organizationName, projectId, teamId);
             var completedEffort = CalculateReportCompletedEffort(organizationName, projectId, teamId, (DateTime)report.StartDate, (DateTime)report.EndDate);
-            var teamSprints = azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+            var teamStartDate = GetTeamStartDate(organizationName, projectId, teamId);
 
-            await Task.WhenAll(team, workDays, teamEffort, completedEffort, teamSprints);
+            await Task.WhenAll(team, workDays, teamEffort, completedEffort);
             
-            var earliestSprint = teamSprints.Result
-                .Where(sprint => sprint.StartDate.HasValue)
-                .OrderBy(sprint => sprint.StartDate)
-                .FirstOrDefault();
-
-            if (!earliestSprint.StartDate.HasValue)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
-            }
 
             var reportStartDate = (DateTime)report.StartDate < (DateTime)team.Result.Deadline ? report.StartDate : team.Result.Deadline;
             var reportEndDate = (DateTime)report.EndDate < (DateTime)team.Result.Deadline ? report.EndDate : team.Result.Deadline;
 
             var reportDuration = ((DateTime)reportStartDate).WorkingDaysUntil((DateTime)reportEndDate, workDays.Result);
-            var teamDuration = ((DateTime)earliestSprint.StartDate).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
+            var teamDuration = (teamStartDate.Result).WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
 
             var plannedEffort = (reportDuration / teamDuration) * teamEffort.Result;
             
@@ -599,6 +618,23 @@ namespace SkripsiAppBackend.UseCases
                 EarnedValue = earnedValue,
                 ActualCost = report.Expenditure ?? 0
             };
+        }
+
+        public async Task<DateTime> GetTeamStartDate(string organizationName, string projectId, string teamId)
+        {
+            var teamSprints = await azureDevopsService.ReadTeamSprints(organizationName, projectId, teamId);
+
+            var earliestSprint = teamSprints
+                .Where(sprint => sprint.StartDate.HasValue)
+                .OrderBy(sprint => sprint.StartDate)
+                .FirstOrDefault();
+
+            if (!earliestSprint.StartDate.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_SPRINTS);
+            }
+
+            return (DateTime)earliestSprint.StartDate;
         }
 
         public async Task<MetricsCollection> CalculateCumulativeMetrics(

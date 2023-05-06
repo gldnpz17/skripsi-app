@@ -12,6 +12,13 @@ namespace SkripsiAppBackend.Persistence.Repositories
 
         public struct TrackedTeamKey
         {
+            public TrackedTeamKey(string organizationName, string projectId, string teamId)
+            {
+                OrganizationName = organizationName;
+                ProjectId = projectId;
+                TeamId = teamId;
+            }
+
             public string OrganizationName { get; set; }
             public string ProjectId { get; set; }
             public string TeamId { get; set; }
