@@ -19,5 +19,23 @@
 
             return workingDays;
         }
+
+        public static DateTime AddWorkingDays(this DateTime startDate, double days, List<DayOfWeek> workDays)
+        {
+            var currentDate = new DateTime(startDate.Ticks);
+            double remainingDays = days;
+
+            while (remainingDays > 0)
+            {
+                if (workDays.Contains(currentDate.DayOfWeek))
+                {
+                    remainingDays -= 1;
+                }
+
+                currentDate.AddDays(1);
+            }
+
+            return currentDate;
+        }
     }
 }

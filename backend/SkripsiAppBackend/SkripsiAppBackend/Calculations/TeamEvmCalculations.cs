@@ -2,6 +2,7 @@
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.UseCases.Extensions;
+using System.Security.Cryptography.X509Certificates;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 using static SkripsiAppBackend.UseCases.MetricCalculations;
@@ -22,6 +23,73 @@ namespace SkripsiAppBackend.Calculations
             this.database = database;
             this.azureDevops = azureDevops;
             this.common = common;
+        }
+
+        public enum EstimateAtCompletionFormulas
+        {
+            Unknown,
+            Basic,
+            Atypical,
+            Typical
+        }
+
+        public async Task<long> CalculateEstimateToCompletion(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now,
+            EstimateAtCompletionFormulas eacFormula)
+        {
+            var estimateAtCompletion = CalculateEstimateAtCompletion(organizationName, projectId, teamId, now, eacFormula);
+            var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
+
+            await Task.WhenAll(estimateAtCompletion, actualCost);
+
+            return estimateAtCompletion.Result - actualCost.Result;
+        }
+
+        public async Task<long> CalculateEstimateAtCompletion(string organizationName, string projectId, string teamId, DateTime now, EstimateAtCompletionFormulas eacFormula)
+        {
+            return eacFormula switch
+            {
+                EstimateAtCompletionFormulas.Basic => await CalculateBasic(),
+                EstimateAtCompletionFormulas.Atypical => await CalculateAtypical(),
+                EstimateAtCompletionFormulas.Typical => await CalculateTypical(),
+                _ => throw new Exception("Unknown formula")
+            };
+
+            async Task<long> CalculateBasic()
+            {
+                var costPerformanceIndex = CalculateCostPerformanceIndex(organizationName, projectId, teamId, now);
+                var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+
+                await Task.WhenAll(costPerformanceIndex, budgetAtCompletion);
+
+                return Convert.ToInt64(Convert.ToDouble(budgetAtCompletion.Result) / costPerformanceIndex.Result);
+            }
+
+            async Task<long> CalculateAtypical()
+            {
+                var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
+                var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+                var earnedValue = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
+
+                await Task.WhenAll(actualCost, budgetAtCompletion, earnedValue);
+
+                return actualCost.Result + budgetAtCompletion.Result - earnedValue.Result;
+            }
+
+            async Task<long> CalculateTypical()
+            {
+                var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
+                var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+                var earnedValue = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
+                var costPerformanceIndex = CalculateCostPerformanceIndex(organizationName, projectId, teamId, now);
+
+                await Task.WhenAll(actualCost, budgetAtCompletion, earnedValue, costPerformanceIndex);
+
+                return actualCost.Result + Convert.ToInt64(Convert.ToDouble(budgetAtCompletion.Result - earnedValue.Result) / costPerformanceIndex.Result);
+            }
         }
 
         public async Task<double> CalculateSchedulePerformanceIndex(string organizationName, string projectId, string teamId, DateTime now)
