@@ -1,5 +1,5 @@
 import { LinearProgress, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
-import { readTeamCpi, readTrackedTeams } from "../api-requests/Teams"
+import { readTeamCpi, readTeamSpi, readTrackedTeams } from "../api-requests/Teams"
 import { Format } from "../common/Format"
 import { Button } from "../Components/Common/Button"
 import { useQuery } from "react-query"
@@ -91,8 +91,8 @@ const Page = () => {
             let cpi = 'Error!'
             let spi = 'Error!'
             try {
-              cpi = Format.number((await readTeamCpi({ teamId, projectId, organizationName })).CostPerformanceIndex, 2)
-              spi = Format.number((await readTeamCpi({ teamId, projectId, organizationName })).SchedulePerformanceIndex, 2)
+              cpi = Format.number((await readTeamCpi({ teamId, projectId, organizationName })).costPerformanceIndex, 2)
+              spi = Format.number((await readTeamSpi({ teamId, projectId, organizationName })).schedulePerformanceIndex, 2)
             } catch (err) {
               // TODO: Display error message?
             }
