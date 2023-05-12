@@ -18,29 +18,61 @@ const mapTeamDetails = ({
   team: mapTeam(team)
 })
 
-const mapTimelineMetric = ({
-  report,
-  ...timelineMetric
+const mapTeamTimeline = ({
+  startDate,
+  deadline,
+  estimatedCompletionDate
 }) => ({
-  ...timelineMetric,
-  report: mapReport(report),
+  startDate: DateTime.fromISO(startDate),
+  deadline: DateTime.fromISO(deadline),
+  estimatedCompletionDate: DateTime.fromISO(estimatedCompletionDate)
+})
+
+const mapCpiChartItem = ({
+  month,
+  ...item
+}) => ({
+  ...item,
+  month: DateTime.fromISO(month)
+})
+
+const mapBurndownChartItem = ({
+  date,
+  ...item
+}) => ({
+  ...item,
+  date: DateTime.fromISO(date)
+})
+
+const mapBurndownChart = ({
+  startDate,
+  endDate,
+  items,
+  ...chart
+}) => ({
+  ...chart,
+  startDate: DateTime.fromISO(startDate),
+  endDate: DateTime.fromISO(endDate),
+  items: items.map(mapBurndownChartItem)
 })
 
 const readUntrackedTeams = async ({ projectId }) => await (await axios.get(`/api/teams/untracked?projectId=${projectId}`)).data
 
 const readTrackedTeams = async () => (await (await axios.get('/api/teams/tracked')).data).map(mapTeam)
 
-const readTeamMetrics = async ({ organizationName, projectId, teamId }) => 
-  (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics`)).data
+const readTeamSpi = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/spi`)).data
 
-const readTeamMetricsTimeline = async ({ organizationName, projectId, teamId, startDate, endDate }) => {
-  const params = new URLSearchParams()
-  if (startDate) params.append('startDate', startDate)
-  if (endDate) params.append('endDate', endDate)
-  
-  const response = (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/timeline?${params.toString()}`)).data
-  return response.map(mapTimelineMetric)
-}
+const readTeamCpi = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/cpi`)).data
+
+const readTeamFinances = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/finances`)).data
+
+const readTeamTimeline = async ({ organizationName, projectId, teamId }) => mapTeamTimeline((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/timeline`)).data)
+
+const readTeamCpiChart = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/cpi-chart`)).data.map(mapCpiChartItem)
+
+const readTeamBurndownChart = async ({ organizationName, projectId, teamId }) => mapBurndownChart((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/burndown-chart`)).data)
+
+const readTeamVelocityChart = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/velocity-chart`)).data
 
 const trackTeam = async ({ organizationName, projectId, teamId }) => await axios.post(`/api/teams`, { organizationName, projectId, teamId })
 
@@ -53,8 +85,13 @@ const deleteTeam = async ({ organizationName, projectId, teamId }) => await axio
 export {
   readUntrackedTeams,
   readTrackedTeams,
-  readTeamMetrics,
-  readTeamMetricsTimeline,
+  readTeamSpi,
+  readTeamCpi,
+  readTeamFinances,
+  readTeamTimeline,
+  readTeamCpiChart,
+  readTeamBurndownChart,
+  readTeamVelocityChart,
   trackTeam,
   readTeamDetails,
   updateTeam,

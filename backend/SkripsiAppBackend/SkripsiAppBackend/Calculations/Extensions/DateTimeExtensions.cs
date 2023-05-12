@@ -32,7 +32,7 @@
                     remainingDays -= 1;
                 }
 
-                currentDate.AddDays(1);
+                currentDate = currentDate.AddDays(1);
             }
 
             return currentDate;

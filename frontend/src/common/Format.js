@@ -40,23 +40,13 @@ const Format = {
   month: (date) => {
     return Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date)
   },
-  relativeTime: (time, unit) => {
-    let timePosition = null
-    if (time > 0) {
-      timePosition = 'ahead'
-    } else if (time < 0) {
-      timePosition = 'behind'
-    }
-
-    if (timePosition) {
-      return `${Math.abs(time)} ${unit}${Math.abs(time) > 1 ? 's' : ''} ${timePosition}`
-    } else {
-      return 'right on time'
-    }
+  relativeTime: (timeDiff, unit, { ahead, behind }) => {
+    return `${Math.abs(timeDiff)} ${unit}${Math.abs(timeDiff) > 1 ? 's' : ''} ${timeDiff >= 0 ? ahead : behind}`
   },
   reportKey: ({ startDate, endDate }) => `${startDate.toISO()}_${endDate.toISO()}`,
   briefDate: (date) => date.toFormat('dd MMM yyyy'),
   fullDate: (date) => date.toFormat('dd MMMM yyyy'),
+  month: (date) => date.toFormat('MMMM yyyy'),
   error: (code) => {
     const dict = {
       'TEAM_NO_EFFORT_COST': {

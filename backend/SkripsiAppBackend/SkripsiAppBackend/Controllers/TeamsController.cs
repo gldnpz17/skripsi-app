@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using SkripsiAppBackend.Calculations;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Common.Authorization;
@@ -16,6 +17,9 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Security.AccessControl;
+using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
+using static SkripsiAppBackend.Calculations.TimeSeriesCalculations;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Controllers
 {
@@ -27,6 +31,10 @@ namespace SkripsiAppBackend.Controllers
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
         private readonly MetricCalculations metricCalculations;
+        private readonly TeamEvmCalculations evm;
+        private readonly CommonCalculations common;
+        private readonly MiscellaneousCalculations misc;
+        private readonly TimeSeriesCalculations timeSeries;
         private readonly Configuration configuration;
 
         public TeamsController(
@@ -34,12 +42,20 @@ namespace SkripsiAppBackend.Controllers
             Database database,
             IAuthorizationService authorizationService,
             MetricCalculations metricCalculations,
+            TeamEvmCalculations evm,
+            CommonCalculations common,
+            MiscellaneousCalculations misc,
+            TimeSeriesCalculations timeSeries,
             Configuration configuration)
         {
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
             this.metricCalculations = metricCalculations;
+            this.evm = evm;
+            this.common = common;
+            this.misc = misc;
+            this.timeSeries = timeSeries;
             this.configuration = configuration;
         }
 
@@ -139,26 +155,210 @@ namespace SkripsiAppBackend.Controllers
             public Team Team { get; set; }
         }
 
-        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics")]
-        public async Task<ActionResult<MetricCalculations.MetricsCollection>> ReadTeamMetrics(
+        public struct SpiMetric
+        {
+            public double SchedulePerformanceIndex { get; set; }
+        }
+
+        public struct CpiMetric
+        {
+            public double CostPerformanceIndex { get; set; }
+        }
+
+        public struct FinanceStatus
+        {
+            public long ActualCost { get; set; }
+            public long RemainingBudget { get; set; }
+            public long BudgetAtCompletion { get; set; }
+            public long CostPerEffort { get; set; }
+            public long EstimateAtCompletion { get; set; }
+            public long EstimateToCompletion { get; set; }
+        }
+
+        public struct TeamTimeline
+        {
+            public DateTime StartDate { get; set; }
+            public DateTime Deadline { get; set; }
+            public DateTime EstimatedCompletionDate { get; set; }
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/spi")]
+        public async Task<ActionResult<SpiMetric>> ReadTeamSpiMetric(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
             [FromRoute] string teamId)
         {
-            return await metricCalculations.CalculateTeamMetricsOverview(organizationName, projectId, teamId);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var spi = await evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, DateTime.Now);
+
+            return new SpiMetric()
+            {
+                SchedulePerformanceIndex = spi
+            };
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/cpi")]
+        public async Task<ActionResult<CpiMetric>> ReadTeamCpiMetric(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var cpi = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, DateTime.Now);
+
+            return new CpiMetric()
+            {
+                CostPerformanceIndex = cpi
+            };
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/finances")]
+        public async Task<ActionResult<FinanceStatus>> ReadTeamFinances(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
+
+            var remainingBudget = misc.CalculateRemainingBudget(organizationName, projectId, teamId, DateTime.Now);
+            var actualCost = evm.CalculateActualCost(organizationName, projectId, teamId, DateTime.Now);
+            var budgetAtCompletion = evm.CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+
+            var estimateAtCompletion = evm.CalculateEstimateAtCompletion(
+                organizationName,
+                projectId,
+                teamId,
+                DateTime.Now,
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EtcFormula)
+            );
+            var estimateToCompletion = evm.CalculateEstimateToCompletion(
+                organizationName,
+                projectId,
+                teamId,
+                DateTime.Now,
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EtcFormula)
+            );
+
+            await Task.WhenAll(remainingBudget, actualCost, budgetAtCompletion, estimateAtCompletion, estimateToCompletion);
+
+            if (!team.CostPerEffort.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            }
+
+            return new FinanceStatus()
+            {
+                ActualCost = actualCost.Result,
+                RemainingBudget = remainingBudget.Result,
+                BudgetAtCompletion = budgetAtCompletion.Result,
+                CostPerEffort = (long)team.CostPerEffort,
+                EstimateAtCompletion = estimateAtCompletion.Result,
+                EstimateToCompletion = estimateToCompletion.Result
+            };
         }
 
         [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/timeline")]
-        public async Task<ActionResult<List<MetricCalculations.MetricsTimelineDataPoint>>> ReadTeamMetricsTimeline(
+        public async Task<ActionResult<TeamTimeline>> ReadTeamTimeline(
             [FromRoute] string organizationName,
             [FromRoute] string projectId,
-            [FromRoute] string teamId,
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate)
+            [FromRoute] string teamId)
         {
-            return await metricCalculations.CalculateTimelineMetrics(organizationName, projectId, teamId, startDate, endDate);
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
+
+            if (!team.Deadline.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            }
+
+            var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
+            var deadline = (DateTime)team.Deadline;
+            var estimatedEndDate = misc.CalculateEstimatedCompletionDate(organizationName, projectId, teamId, DateTime.Now);
+
+            await Task.WhenAll(startDate, estimatedEndDate);
+
+            return new TeamTimeline()
+            {
+                StartDate = startDate.Result,
+                Deadline = deadline,
+                EstimatedCompletionDate = estimatedEndDate.Result,
+            };
         }
 
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/cpi-chart")]
+        public async Task<ActionResult<List<CpiChartItem>>> ReadCpiChart(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var data = await timeSeries.CalculateCpiChart(organizationName, projectId, teamId);
+
+            return data;
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/burndown-chart")]
+        public async Task<ActionResult<BurndownChart>> ReadBurndownChart(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var data = await timeSeries.CalculateBurndownChart(organizationName, projectId, teamId);
+
+            return data;
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/velocity-chart")]
+        public async Task<ActionResult<List<VelocityChartItem>>> ReadVelocityChart(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var data = await timeSeries.CalculateVelocityChart(organizationName, projectId, teamId);
+
+            return data;
+        }
+        
         [HttpGet("{organizationName}/{projectId}/{teamId}")]
         public async Task<ActionResult<TeamDetails>> ReadTeamDetailsById(
             [FromRoute] string organizationName,

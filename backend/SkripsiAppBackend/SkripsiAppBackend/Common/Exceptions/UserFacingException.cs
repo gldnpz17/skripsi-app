@@ -17,7 +17,9 @@
             TEAM_NO_DEADLINE,
             TEAM_NO_WORK_ITEMS,
             TEAM_NO_EFFORT_COST,
-            REPORT_INCOMPLETE_INFORMATION
+            REPORT_INCOMPLETE_INFORMATION,
+            ZERO_EXPENDITURE,
+            NO_REPORT
         }
     }
 }

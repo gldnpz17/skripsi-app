@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.DependencyInjection;
+using SkripsiAppBackend.Calculations;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
 using SkripsiAppBackend.Common.Authorization;
@@ -44,6 +45,10 @@ builder.Services.AddScoped<AccessTokenService>();
 builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));
 
 builder.Services.AddScoped<MetricCalculations>();
+builder.Services.AddScoped<CommonCalculations>();
+builder.Services.AddScoped<TeamEvmCalculations>();
+builder.Services.AddScoped<TimeSeriesCalculations>();
+builder.Services.AddScoped<MiscellaneousCalculations>();
 
 builder.Services.AddInMemoryObjectCaching(
     typeof(List<AuthenticationMiddleware.ProfileTeam>),

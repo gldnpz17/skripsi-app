@@ -9,7 +9,10 @@ const ErrorMessage = ({ message, reason, helpLink, helpText }) => (
       <div>
         <div className=''>{message}</div>
         <div className='text-sm text-gray-300'>
-          <b>Reason :</b> {reason}. <ExternalLink className='inline-flex' to={helpLink}>{helpText}</ExternalLink>
+          <b>Reason :</b> {reason}.&nbsp;
+          {helpLink && helpText && (
+            <ExternalLink className='inline-flex' to={helpLink}>{helpText}</ExternalLink>
+          )}
         </div>
       </div>
     </div>
@@ -33,10 +36,20 @@ const ErrorPlaceholder = ({ className, errorCode, ...props }) => {
         reason: 'Cost per effort not set',
         helpText: 'Set cost per effort',
         helpLink: `/teams/${props.team.organization.name}/${props.team.project.id}/${props.team.id}`
+      }),
+      'ZERO_EXPENDITURE': () => ({
+        reason: 'Total expenditure is zero'
+      }),
+      'NO_REPORT': () => ({
+        reason: 'No reports created yet'
       })
     }
 
-    return errors[errorCode]()
+    const error = errors[errorCode]
+
+    if (!error) return ({ reason: `Unknown error` })
+
+    return error()
   }, [errorCode, props])
 
   return (

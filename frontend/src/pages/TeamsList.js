@@ -1,5 +1,5 @@
 import { LinearProgress, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
-import { readTeamMetrics, readTrackedTeams } from "../api-requests/Teams"
+import { readTeamCpi, readTrackedTeams } from "../api-requests/Teams"
 import { Format } from "../common/Format"
 import { Button } from "../Components/Common/Button"
 import { useQuery } from "react-query"
@@ -81,7 +81,6 @@ const Page = () => {
     if (!teams) return
 
     (async () => {
-      console.log(teams)
       const rows = await Promise.all(
         teams
           .sort((a, b) => (a.archived === b.archived) ? 0 : a.archived ? 1 : -1)
@@ -92,9 +91,8 @@ const Page = () => {
             let cpi = 'Error!'
             let spi = 'Error!'
             try {
-              const metrics = await readTeamMetrics({ teamId, projectId, organizationName })
-              cpi = Format.number(metrics.healthMetrics.costPerformanceIndex, 2)
-              spi = Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2)
+              cpi = Format.number((await readTeamCpi({ teamId, projectId, organizationName })).CostPerformanceIndex, 2)
+              spi = Format.number((await readTeamCpi({ teamId, projectId, organizationName })).SchedulePerformanceIndex, 2)
             } catch (err) {
               // TODO: Display error message?
             }

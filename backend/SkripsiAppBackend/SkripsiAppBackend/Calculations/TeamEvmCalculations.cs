@@ -33,6 +33,26 @@ namespace SkripsiAppBackend.Calculations
             Typical
         }
 
+        public static class FormulaHelpers
+        {
+            public static TEnum? FromString<TEnum>(string stringValue) where TEnum : Enum
+            {
+                var values = Enum.GetValues(typeof(TEnum))
+                    .Cast<TEnum>()
+                    .ToList();
+
+                foreach (var value in values)
+                {
+                    if (value.ToString() == stringValue)
+                    {
+                        return value;
+                    }
+                }
+
+                return default;
+            }
+        }
+
         public async Task<long> CalculateEstimateToCompletion(
             string organizationName,
             string projectId,
@@ -103,13 +123,23 @@ namespace SkripsiAppBackend.Calculations
 
             return schedulePerformanceIndex;
         }
-        
+
         public async Task<double> CalculateCostPerformanceIndex(string organizationName, string projectId, string teamId, DateTime now)
         {
-            var reportedEarnedValueTask = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
-            var actualCostTask = CalculateActualCost(organizationName, projectId, teamId, now);
+            return await CalculateCostPerformanceIndex(organizationName, projectId, teamId, DateTime.MinValue, now);
+        }
+        
+        public async Task<double> CalculateCostPerformanceIndex(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
+            var reportedEarnedValueTask = CalculateReportedEarnedValue(organizationName, projectId, teamId, start, end);
+            var actualCostTask = CalculateActualCost(organizationName, projectId, teamId, start, end);
 
             await Task.WhenAll(reportedEarnedValueTask, actualCostTask);
+
+            if (actualCostTask.Result == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.ZERO_EXPENDITURE);
+            }
 
             var costPerformanceIndex = Convert.ToDouble(reportedEarnedValueTask.Result) / Convert.ToDouble(actualCostTask.Result);
 
@@ -118,11 +148,16 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculateActualCost(string organizationName, string projectId, string teamId, DateTime now)
         {
+            return await CalculateActualCost(organizationName, projectId, teamId, DateTime.MinValue, now);
+        }
+
+        public async Task<long> CalculateActualCost(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var reports = await database.Reports.ReadTeamReports(teamKey);
             var actualCost = reports
-                .Where(report => report.EndDate < now)
+                .Where(report => report.StartDate >= start && report.EndDate <= end)
                 .Aggregate(0L, (total, report) => total + report.Expenditure);
 
             return actualCost;
@@ -156,6 +191,11 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculateActualEarnedValue(string organizationName, string projectId, string teamId, DateTime now)
         {
+            return await CalculateActualEarnedValue(organizationName, projectId, teamId, DateTime.MinValue, now);
+        }
+
+        public async Task<long> CalculateActualEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var team = database.TrackedTeams.ReadByKey(teamKey);
@@ -163,12 +203,16 @@ namespace SkripsiAppBackend.Calculations
 
             await Task.WhenAll(team, sprintsTask);
 
-            var sprintWorkItems = sprintsTask.Result
-                .Where(sprint => sprint.Sprint.StartDate.HasValue)
-                .Where(sprint => sprint.Sprint.StartDate < now)
-                .SelectMany(sprint => sprint.WorkItems);
-            var completedWorkItems = sprintWorkItems.Where(workItem => workItem.State == WorkItemState.Done);
-            var completedEffort = common.CalculateTotalEffort(completedWorkItems.ToList());
+            var completedEffort = sprintsTask.Result
+                .Where(sprint => sprint.Sprint.StartDate.HasValue && sprint.Sprint.EndDate.HasValue)
+                .Where(sprint => sprint.Sprint.StartDate >= start && sprint.Sprint.EndDate <= end)
+                .Select(sprint => common.AdjustSprint(
+                    sprint.Sprint,
+                    sprint.WorkItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(),
+                    start,
+                    end
+                ))
+                .Aggregate(0d, (totalEffort, sprint) => totalEffort + sprint.Effort);
 
             if (!team.Result.CostPerEffort.HasValue)
             {
@@ -182,6 +226,11 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime now)
         {
+            return await CalculateReportedEarnedValue(organizationName, projectId, teamId, DateTime.MinValue, now);
+        }
+
+        public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var teamTask = database.TrackedTeams.ReadByKey(teamKey);
@@ -191,7 +240,7 @@ namespace SkripsiAppBackend.Calculations
             await Task.WhenAll(teamTask, reportsTask, sprintsTask);
 
             var reportEffortTasks = reportsTask.Result
-                .Where(report => report.EndDate < now)
+                .Where(report => report.StartDate >= start && report.EndDate <= end)
                 .Select(async (report) =>
                 {
                     var reportSprints = sprintsTask.Result
@@ -206,7 +255,7 @@ namespace SkripsiAppBackend.Calculations
                     {
                         var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
 
-                        return common.AdjustSprint(sprint, workItems, report.StartDate, report.EndDate);
+                        return common.AdjustSprint(sprint, workItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(), report.StartDate, report.EndDate);
                     });
 
                     var adjustedSprints = (await Task.WhenAll(adjustedSprintTasks)).ToList();

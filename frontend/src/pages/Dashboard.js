@@ -6,7 +6,7 @@ import { AzureDevops, CalendarCheck, Cash, CashStack, CheckeredFlag, Configurati
 import { CategoryScale, BarController, BarElement, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip, TimeScale } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
-import { readTeamDetails, readTeamMetrics, readTeamMetricsTimeline, readTrackedTeams, readUntrackedTeams } from "../api-requests/Teams"
+import { readTeamBurndownChart, readTeamCpi, readTeamCpiChart, readTeamFinances, readTeamSpi, readTeamTimeline, readTeamVelocityChart, readTrackedTeams } from "../api-requests/Teams"
 import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
@@ -97,158 +97,7 @@ const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading, teamPinned, to
   )
 }
 
-const HealthComponentStatus = ({ title, content, severity, children }) => {
-  const textColor = useMemo(() => {
-    if (severity === undefined) {
-      return 'text-white'
-    }
-
-    return `text-${Format.statusColor(severity)}`
-  }, [severity])
-
-  return (
-    <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
-      <div className='text-gray-400 text-sm font-bold mb-1'>{title}</div>
-      <div className={`${textColor} text-xl`}>
-        {content}
-      </div>
-      {children && (
-        <hr className='my-3 border-gray-700' />
-      )}
-      <div>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-const ProgressBar = ({ progress, className }) => (
-  <div className={`h-2 rounded-lg overflow-hidden ${className} relative rounded`}>
-    {/* Background */}
-    <div className='bg-primary-light absolute inset-0' />
-    {/* Progress */}
-    <div className={`absolute left-0 rounded-lg top-0 bottom-0 bg-primary-dark`} style={{ right: `${(1 - progress) * 100}%` }} />
-  </div>
-)
-
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, BarController, BarElement, Title, Tooltip, Legend, TimeScale)
-
-const MetricButton = ({ children, onClick, active }) => (
-  <button {...{ onClick }} className={`px-3 py-0 text-sm border duration-150 border-secondary-dark whitespace-nowrap rounded-md text-white ${active && 'bg-secondary-dark border text-black shadow-sm shadow-secondary-dark'}`}>
-    {children}
-  </button>
-)
-
-const HealthLineChart = ({ dataPoints }) => {
-  const metrics = {
-    PV: {
-      label: 'Planned Value',
-      map: (dataPoint) => dataPoint.basicMetrics.plannedValue
-    },
-    EV: {
-      label: 'Earned Value',
-      map: (dataPoint) => dataPoint.basicMetrics.earnedValue
-    },
-    AC: {
-      label: 'Actual Cost',
-      map: (dataPoint) => dataPoint.basicMetrics.actualCost
-    },
-    CPI: {
-      label: 'Cost Performance Index',
-      map: (dataPoint) => dataPoint.healthMetrics.costPerformanceIndex
-    },
-    CV: {
-      label: 'Cost Variance',
-      map: (dataPoint) => dataPoint.healthMetrics.costVariance
-    },
-    SPI: {
-      label: 'Schedule Performance Index',
-      map: (dataPoint) => dataPoint.healthMetrics.schedulePerformanceIndex
-    },
-    SV: {
-      label: 'Schedule Variance',
-      map: (dataPoint) => dataPoint.healthMetrics.scheduleVariance
-    },
-  }
-
-  const [metric, setMetric] = useState(metrics.PV)
-
-  const labels = useMemo(() => dataPoints.map(dataPoint => dataPoint.report.startDate.toFormat('MMM yyyy')), [dataPoints])
-
-  const dataset = useMemo(() => ({
-    label: metric.label,
-    data: dataPoints.map(metric.map),
-    borderColor: 'rgb(111, 134, 191)',
-    tension: 0.3
-  }), [metric, dataPoints])
-
-  return (
-    <div className='h-96 flex flex-col w-full rounded-md bg-dark-2 p-4 border border-gray-700'>
-      <div className='w-full mb-4 flex items-center'>
-        <div className='text-gray-400 text-sm font-bold flex-grow'>Project Health History</div>
-        <IconButton onClick={() => alert('Hello')}>
-          <Configuration className='h-5' />
-        </IconButton>
-      </div>
-      {dataPoints.length === 0 && (
-        <div className='text-gray-500 text-xl h-full font-bold flex flex-col items-center justify-center flex-grow'>
-          <DatabaseAlert className='h-32 mb-4' />
-          <span>No data to display</span>
-        </div>
-      )}
-      {dataPoints.length > 0 && (
-        <>
-          <div className='flex-grow mb-3'>
-          <Line
-            style={{
-              minHeight: "100%",
-              height: "0",
-              width: "100%"
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: null,
-              },
-              scales: {
-                x: {
-                  ticks: {
-                    color: 'white'
-                  },
-                  grid: {
-                    display: false
-                  }
-                },
-                y: {
-                  display: false,
-                  ticks: {
-                    color: 'white'
-                  },
-                  grid: {
-                    display: false
-                  }
-                }
-              }
-            }}
-            data={{
-              labels,
-              datasets: [dataset]
-            }}
-          />
-        </div>
-        <div className='flex gap-3 flex-wrap mb-4'>
-          {Object.keys(metrics).map(key => (
-            <MetricButton {...{ key }} active={metric.label === metrics[key].label} onClick={() => setMetric(metrics[key])}>
-              {metrics[key].label}
-            </MetricButton>
-          ))}
-        </div>
-        </>
-      )}
-    </div>
-  )
-}
 
 const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
   <div>
@@ -274,184 +123,31 @@ const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
   </div>
 )
 
-const HealthComponentInformation = ({ title, Icon, content }) => (
-  <div className='flex flex-col'>
-    <div className='flex gap-1 items-center'>
-      <Icon className='h-4' />
-      <div className='text-sm text-gray-400'>{title}</div>
-    </div>
-    <div>{content}</div>
-  </div>
-)
-
 const TeamDetailsSkeleton = () => (
   <div className='grid grid-cols-12 gap-x-4 gap-y-6 overflow-hidden'>
     <Skeleton className='col-span-5 h-14' />
     <div className='col-span-4' />
     <Skeleton className='col-span-3 h-14' />
 
-    <Skeleton className='col-span-4 h-28' />
-    <Skeleton className='col-span-4 h-28' />
-    <Skeleton className='col-span-4 h-28' />
+    <Skeleton className='col-span-6 h-32' />
+    <Skeleton className='col-span-6 h-32' />
+
+    <Skeleton className='col-span-12 h-36' />
+
+    <Skeleton className='col-span-6 h-36' />
+    <div className='col-span-6'>
+      <div className='flex flex-col gap-3 col-span-12'>
+        <Skeleton className='col-span-12 h-10' />
+        <Skeleton className='col-span-12 h-10' />
+        <Skeleton className='col-span-12 h-10' />
+      </div>
+    </div>
 
     <Skeleton className='col-span-12 h-80' />
-
-    <div className='flex flex-col gap-3 col-span-12'>
-      <Skeleton className='col-span-12 h-10' />
-      <Skeleton className='col-span-12 h-10' />
-      <Skeleton className='col-span-12 h-10' />
-    </div>
+    <Skeleton className='col-span-12 h-80' />
+    <Skeleton className='col-span-12 h-80' />
   </div>
 )
-
-const TeamDetailsSection = ({ selectedTeam }) => {
-  const organizationName = selectedTeam.organization.name
-  const projectId = selectedTeam.project.id
-  const projectName = selectedTeam.project.name
-  const teamId = selectedTeam.id
-  const teamName = selectedTeam.name
-
-  const {
-    isLoading: metricsLoading,
-    data: metrics,
-    error: metricsError
-  } = useQuery(
-    ['teams', organizationName, projectId, teamId, 'metrics'],
-    async () => await readTeamMetrics({ organizationName, projectId, teamId }),
-    { retry: false }
-  )
-
-  const {
-    isLoading: metricsTimelineLoading,
-    data: metricsTimeline
-  } = useQuery(
-    ['teams', organizationName, projectId, teamId, 'metrics', 'timeline'],
-    async () => await readTeamMetricsTimeline({ organizationName, projectId, teamId }),
-    { retry: false }
-  )
-
-  const {
-    isLoading: reportMetricsLoading,
-    data: reportMetrics,
-    error: reportMetricsError
-  } = useQuery(
-    ['teams', organizationName, projectId, teamId, 'reports'],
-    async () => await readTeamReports({ organizationName, projectId, teamId }),
-    { retry: false }
-  )
-
-  const {
-    isLoading: availableReportsLoading,
-    data: availableReports,
-    error: availableReportsError
-  } = useQuery(
-    ['teams', organizationName, projectId, teamId, 'available-reports'],
-    async () => await readAvailableReports({ organizationName, projectId, teamId }),
-    { retry: false }
-  )
-
-  const reportsError = useMemo(() => {
-    return reportMetricsError ?? availableReportsError ?? null
-  }, [reportMetricsError, availableReportsError])
-
-  if (metricsLoading || 
-    reportMetricsLoading || 
-    availableReportsLoading || 
-    metricsTimelineLoading
-  ) return <TeamDetailsSkeleton />
-
-  return (
-    <div className='grid grid-cols-12 gap-x-4 gap-y-6'>
-      <div className='flex items-center col-span-12'>
-        <div className='flex-grow'>
-          <h1 className='text-2xl mb-1'>{teamName} - {projectName}</h1>
-          <ExternalLink
-            to={`/teams/${organizationName}/${projectId}/${teamId}`}
-          >
-            Team Settings
-          </ExternalLink>
-        </div>
-        {!metricsError && (
-          <div>
-            <div className='text-sm text-gray-400 text-right mb-1'>Budget Usage</div>
-            <div className='flex gap-2 items-center'>
-              <ProgressBar progress={metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion} className='w-32' />
-              <span>
-                {Format.number(metrics.basicMetrics.actualCost / metrics.forecastMetrics.budgetAtCompletion * 100, 0)} %
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-      {metricsError && (
-        <ErrorPlaceholder
-          className='col-span-12'
-          message='Unable to display health metrics.'
-          errorCode={metricsError.response.data}
-          team={selectedTeam}
-        />
-      )}
-      {!metricsError && (
-        <>
-          <div className='col-span-4'>
-            <HealthComponentStatus
-              title="Estimate at Completion"
-              content={Format.currency(metrics.forecastMetrics.estimateAtCompletion)}
-            >
-              <HealthComponentInformation
-                Icon={CashStack}
-                title='Estimate to Completion'
-                content={Format.currency(Math.max(0, metrics.forecastMetrics.estimateToCompletion))}
-              />
-            </HealthComponentStatus>
-          </div>
-          <div className='col-span-4'>
-            <HealthComponentStatus
-              title="Cost Performance Index"
-              content={`${Format.number(metrics.healthMetrics.costPerformanceIndex, 2)} (${metrics.healthMetrics.costPerformanceIndex < 1 ? 'Over Budget' : 'Under Budget'})`}
-              severity={Format.performanceIndex(metrics.healthMetrics.costPerformanceIndex).status}
-            >
-              <HealthComponentInformation
-                Icon={CashStack}
-                title='Cost Variance'
-                content={Format.currency(metrics.healthMetrics.costVariance)}
-              />
-            </HealthComponentStatus>
-          </div>
-          <div className='col-span-4'>
-            <HealthComponentStatus
-              title='Schedule Performance Index'
-              content={`${Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2)} (${Format.number(metrics.healthMetrics.schedulePerformanceIndex, 2) < 1 ? 'Behind Schedule' : 'Ahead of schedule'})`}
-              severity={Format.performanceIndex(metrics.healthMetrics.schedulePerformanceIndex).status}
-            >
-              <HealthComponentInformation
-                Icon={CheckeredFlag}
-                title='Schedule Variance'
-                content={Format.currency(metrics.healthMetrics.scheduleVariance)}
-              />
-            </HealthComponentStatus>
-          </div>
-        </>
-      )}
-      <div className='col-span-12'>
-        <HealthLineChart dataPoints={metricsTimeline} />
-      </div>
-      {reportsError && (
-        <ErrorPlaceholder
-          className='col-span-12 mb-8'
-          message='Unable to display report list.'
-          errorCode={reportsError.response.data}
-          team={selectedTeam}
-        />
-      )}
-      {!reportsError && (
-        <div className='col-span-12 mb-8'>
-          <ReportsList {...{ reportMetrics, availableReports, selectedTeam }} />
-        </div>
-      )}
-    </div>
-  )
-}
 
 const IndexMeter = ({
   label,
@@ -577,10 +273,19 @@ const CostInfo = ({
   </div>
 )
 
-const CostSection = () => {
+const CostSection = ({ 
+  data: {
+    actualCost,
+    budgetAtCompletion,
+    costPerEffort,
+    estimateAtCompletion,
+    estimateToCompletion,
+    remainingBudget
+  }
+}) => {
   const labels = ['AC', 'BAC', 'EAC']
   const dataset = {
-    data: [10000000, 30000000, 35000000],
+    data: [actualCost, budgetAtCompletion, estimateAtCompletion],
     backgroundColor: 'rgb(111, 134, 191)'
   }
   const options = {
@@ -611,33 +316,33 @@ const CostSection = () => {
           primary={{
             label: 'Actual Cost (AC)',
             description: 'The amount of money you\'ve spent',
-            value: 10000000
+            value: actualCost
           }}
           secondary={{
             label: 'Remaining budget',
-            value: 20000000
+            value: remainingBudget
           }}
         />
         <CostInfo
           primary={{
             label: 'Budget at Completion (BAC)',
             description: 'The total budget of the project',
-            value: 10000000
+            value: budgetAtCompletion
           }}
           secondary={{
             label: 'Cost per effort',
-            value: 1000
+            value: costPerEffort
           }}
         />
         <CostInfo
           primary={{
             label: 'Estimate at Completion (EAC)',
             description: 'The estimated final cost of the project',
-            value: 12000000
+            value: estimateAtCompletion
           }}
           secondary={{
             label: 'Remainder to complete',
-            value: 70000000
+            value: estimateToCompletion
           }}
         />
       </div>
@@ -663,7 +368,7 @@ const ChartLegend = ({ items = [] }) => (
   </div>
 )
 
-const CpiChartSection = () => {
+const CpiChartSection = ({ data }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -688,12 +393,17 @@ const CpiChartSection = () => {
     }
   }
 
-  const labels = ['January 2023', 'February 2023', 'March 2023', 'April 2023', 'May 2023']
-  const dataset = {
-    label: 'Cost Performance Index',
-    data: [1.3, 1.1, 0.8, 1.2, 1.1],
-    borderColor: 'rgb(179, 136, 235)'
-  }
+  const { labels, dataset } = useMemo(() => {
+    const labels = data.map(datum => Format.month(datum.month))
+    const dataset = {
+      label: 'Cost Performance Index',
+      data: data.map(datum => datum.costPerformanceIndex),
+      borderColor: 'rgb(179, 136, 235)'
+    }
+
+    return { labels, dataset }
+  }, [data])
+
   const baseline = {
     label: 'Baseline',
     data: new Array(labels.length).fill(1),
@@ -728,7 +438,14 @@ const CpiChartSection = () => {
   )
 }
 
-const BurndownChartSection = () => {
+const BurndownChartSection = ({
+  data: {
+    startDate,
+    endDate,
+    items,
+    totalEffort
+  }
+}) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -754,23 +471,25 @@ const BurndownChartSection = () => {
     }
   }
 
-  const dataset = {
-    label: 'Remaining Effort',
-    data: [
-      { y: 120, x: DateTime.fromObject({ year: 2023, month: 1, day: 1 }).toJSDate() },
-      { y: 100, x: DateTime.fromObject({ year: 2023, month: 1, day: 10 }).toJSDate() },
-      { y: 100, x: DateTime.fromObject({ year: 2023, month: 1, day: 18 }).toJSDate() },
-      { y: 70, x: DateTime.fromObject({ year: 2023, month: 2, day: 5 }).toJSDate() },
-      { y: 40, x: DateTime.fromObject({ year: 2023, month: 2, day: 13 }).toJSDate() },
-      { y: 30, x: DateTime.fromObject({ year: 2023, month: 2, day: 23 }).toJSDate() }
-    ],
-    borderColor: 'rgb(179, 136, 235)'
-  }
+  const dataset = useMemo(() => {
+    return ({
+      label: 'Remaining Effort',
+      data: [
+        { y: totalEffort, x: startDate },
+        ...items.map(item => ({
+          y: item.remainingEffort,
+          x: item.date
+        }))
+      ],
+      borderColor: 'rgb(179, 136, 235)'
+    })
+  }, [items])
+
   const baseline = {
     label: 'Planned',
     data: [
-      { y: 120, x: DateTime.fromObject({ year: 2023, month: 1, day: 1 }).toJSDate() },
-      { y: 0, x: DateTime.fromObject({ year: 2023, month: 3, day: 15 }).toJSDate() }
+      { y: totalEffort, x: startDate },
+      { y: 0, x: endDate }
     ],
     borderColor: 'rgb(248, 113, 113)',
     borderDash: [5, 5],
@@ -799,7 +518,7 @@ const BurndownChartSection = () => {
   )
 }
 
-const VelocityChartSection = () => {
+const VelocityChartSection = ({ data }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -821,35 +540,25 @@ const VelocityChartSection = () => {
     }
   }
 
-  const dataset = {
-    label: 'Velocity',
-    data: [
-      { y: 120, x: 'Sprint #1' },
-      { y: 100, x: 'Sprint #2' },
-      { y: 100, x: 'Sprint #3' },
-      { y: 70, x: 'Sprint #4' },
-      { y: 40, x: 'Sprint #5' },
-      { y: 30, x: 'Sprint #6' }
-    ],
-    backgroundColor: 'rgb(111, 134, 191)',
-    order: 1
-  }
+  const { dataset, requiredAverage } = useMemo(() => {
+    const dataset = {
+      label: 'Velocity',
+      data: data.map(datum => ({ y: datum.velocity, x: `Sprint #${datum.index + 1}` })),
+      backgroundColor: 'rgb(111, 134, 191)',
+      order: 1
+    }
 
-  const requiredAverage = {
-    label: 'Minimum Average Velocity',
-    type: 'line',
-    data: [
-      { y: 95, x: 'Sprint #1' },
-      { y: 80, x: 'Sprint #2' },
-      { y: 70, x: 'Sprint #3' },
-      { y: 85, x: 'Sprint #4' },
-      { y: 70, x: 'Sprint #5' },
-      { y: 90, x: 'Sprint #6' }
-    ],
-    borderColor: 'rgb(248, 113, 113)',
-    borderDash: [5, 5],
-    order: 0
-  }
+    const requiredAverage = {
+      label: 'Minimum Average Velocity',
+      type: 'line',
+      data: data.map(datum => ({ y: datum.minimumAverageVelocity, x: `Sprint #${datum.index + 1}` })),
+      borderColor: 'rgb(248, 113, 113)',
+      borderDash: [5, 5],
+      order: 0
+    }
+
+    return { dataset, requiredAverage }
+  }, [data])
 
   return (
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
@@ -872,6 +581,80 @@ const VelocityChartSection = () => {
     </div>
   )
 }
+
+const PunctualitySection = ({ spi: { schedulePerformanceIndex } }) => (
+  <IndexMeter
+    label='Punctuality'
+    icon={CheckeredFlag}
+    status={schedulePerformanceIndex >= 1 ? 'Ahead of Schedule' : 'Behind Schedule'}
+    severity={2}
+    meter={{
+      minLabel: '100% late',
+      midLabel: 'On time',
+      maxLabel: '100% early'
+    }}
+    index={{
+      name: 'Schedule Performance Index (SPI)',
+      description: 'How punctual we are',
+      value: Format.number(schedulePerformanceIndex, 2),
+      hint: schedulePerformanceIndex >= 1 ? `${Math.round((schedulePerformanceIndex - 1) * 100)}% early` : `${Math.round((1 - schedulePerformanceIndex) * 100)}% late`
+    }}
+  />
+)
+
+const BudgetSection = ({ cpi: { costPerformanceIndex } }) => (
+  <IndexMeter
+    label='Budget'
+    icon={CashStack}
+    status={costPerformanceIndex >= 1 ? 'Under Budget' : 'Over Budget'}
+    severity={2}
+    meter={{
+      minLabel: '100% over budget',
+      midLabel: 'On budget',
+      maxLabel: '100% under budget'
+    }}
+    index={{
+      name: 'Cost Performance Index (CPI)',
+      description: 'How well we\'re doing financially',
+      value: Format.number(costPerformanceIndex, 2),
+      hint: costPerformanceIndex >= 1 ? `${Math.round((costPerformanceIndex - 1) * 100)}% under budget` : `${Math.round((1 - costPerformanceIndex) * 100)}% over budget`
+    }}
+  />
+)
+
+const TimelineSection = ({ 
+  data: {
+    startDate,
+    deadline,
+    estimatedCompletionDate
+  }
+}) => (
+  <Timeline
+    timelineItems={[
+      {
+        date: startDate,
+        label: 'Start date',
+        info: Format.relativeTime(Math.round(startDate.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })
+      },
+      {
+        date: DateTime.now(),
+        label: 'Today',
+        info: null
+      },
+      {
+        date: deadline,
+        label: 'Deadline',
+        info: Format.relativeTime(Math.round(deadline.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })
+      },
+      {
+        date: estimatedCompletionDate,
+        label: 'Estimated completion',
+        // 13 days behind schedule, 20 days from now
+        info: `${Format.relativeTime(Math.round(deadline.diff(estimatedCompletionDate, 'days').days), 'day', { ahead: 'ahead of schedule', behind: 'behind schedule' })}, ${Format.relativeTime(Math.round(estimatedCompletionDate.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })}`
+      }
+    ].sort((a, b) => a.date.diff(b.date, 'days'))}
+  />
+)
 
 const NewTeamDetailsSection = ({ selectedTeam }) => {
   const organizationName = selectedTeam.organization.name
@@ -904,6 +687,90 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
     { retry: false }
   )
 
+  const {
+    isLoading: spiLoading,
+    data: spi,
+    error: spiError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'spi'],
+    async () => readTeamSpi({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: cpiLoading,
+    data: cpi,
+    error: cpiError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'cpi'],
+    async () => readTeamCpi({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: financesLoading,
+    data: finances,
+    error: financeError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'finances'],
+    async () => readTeamFinances({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: timelineLoading,
+    data: timeline,
+    error: timelineError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'timeline'],
+    async () => readTeamTimeline({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: cpiChartLoading,
+    data: cpiChart,
+    error: cpiChartError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'cpi-chart'],
+    async () => readTeamCpiChart({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: burndownChartLoading,
+    data: burndownChart,
+    error: burndownChartError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'burndown-chart'],
+    async () => readTeamBurndownChart({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: velocityChartLoading,
+    data: velocityChart,
+    error: velocityChartError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'velocity-chart'],
+    async () => readTeamVelocityChart({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  if ([
+    reportMetricsLoading,
+    availableReportsLoading,
+    spiLoading,
+    cpiLoading,
+    financesLoading,
+    timelineLoading,
+    cpiChartLoading,
+    burndownChartLoading,
+    velocityChartLoading
+  ].some(loading => loading === true)) {
+    return <TeamDetailsSkeleton />
+  }
+
   return (
     <div className='grid grid-cols-12 gap-4 mb-12'>
       {/* Team Name */}
@@ -923,92 +790,98 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
       </div>
       {/* SPI */}
       <div className='col-span-6'>
-        <IndexMeter
-          label='Punctuality'
-          icon={CheckeredFlag}
-          status='Behind Schedule'
-          severity={2}
-          meter={{
-            minLabel: '100% late',
-            midLabel: 'On time',
-            maxLabel: '100% early'
-          }}
-          index={{
-            name: 'Schedule Performance Index (SPI)',
-            description: 'How punctual we are',
-            value: 0.6,
-            hint: '40% late'
-          }}
-        />
+        {spiError && (
+          <ErrorPlaceholder
+            message='Unable to display punctuality status.'
+            errorCode={spiError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!spiError && (
+          <PunctualitySection {...{ spi }} />
+        )}
       </div>
       {/* CPI */}
       <div className='col-span-6'>
-        <IndexMeter
-          label='Budget'
-          icon={CashStack}
-          status='Over Budget'
-          severity={2}
-          meter={{
-            minLabel: '100% over budget',
-            midLabel: 'On budget',
-            maxLabel: '100% under budget'
-          }}
-          index={{
-            name: 'Cost Performance Index (CPI)',
-            description: 'How well we\'re doing financially',
-            value: 0.8,
-            hint: '20% over budget'
-          }}
-        />
+        {cpiError && (
+          <ErrorPlaceholder
+            message='Unable to display budget status.'
+            errorCode={cpiError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!cpiError && (
+          <BudgetSection {...{ cpi }} />
+        )}
       </div>
       {/* Cost Breakdown */}
       <div className='col-span-12'>
-        <CostSection />
+        {financeError && (
+          <ErrorPlaceholder
+            message='Unable to display project finance status.'
+            errorCode={financeError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!financeError && (
+          <CostSection data={finances} />
+        )}
       </div>
       {/* Timeline */}
       <div className='col-span-6'>
-        <Timeline
-          timelineItems={[
-            {
-              date: DateTime.fromObject({ year: 2023, month: 3, day: 1 }),
-              label: 'Start date',
-              info: '2 days ago'
-            },
-            {
-              date: DateTime.fromObject({ year: 2023, month: 3, day: 3 }),
-              label: 'Today',
-              info: null
-            },
-            {
-              date: DateTime.fromObject({ year: 2023, month: 3, day: 10 }),
-              label: 'Deadline',
-              info: '7 days from now'
-            },
-            {
-              date: DateTime.fromObject({ year: 2023, month: 3, day: 23 }),
-              label: 'Estimated completion',
-              info: '13 days behind schedule, 20 days from now'
-            }
-          ]}
-        />
+        {timelineError && (
+          <ErrorPlaceholder
+            message='Unable to display project timeline.'
+            errorCode={timelineError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!timelineError && (
+          <TimelineSection data={timeline} />
+        )}
       </div>
       {/* Recent Reports */}
       <div className='col-span-6 pt-2'>
-        {!reportMetricsLoading && !availableReportsLoading && (
-          <ReportsList {...{ selectedTeam, availableReports, reportMetrics }} />
-        )}
+        <ReportsList {...{ selectedTeam, availableReports, reportMetrics }} />
       </div>
       {/* CPI Chart */}
       <div className='col-span-12'>
-        <CpiChartSection />
+        {cpiChartError && (
+          <ErrorPlaceholder
+            message='Unable to display cost performance chart.'
+            errorCode={cpiChartError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!cpiChartError && (
+          <CpiChartSection data={cpiChart} />
+        )}
       </div>
       {/* Burndown Chart */}
       <div className='col-span-12'>
-        <BurndownChartSection />
+        {burndownChartError && (
+          <ErrorPlaceholder
+            message='Unable to display burndown chart.'
+            errorCode={burndownChartError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!burndownChartError && (
+          <BurndownChartSection data={burndownChart} />
+        )}
       </div>
-      {/*  */}
+      {/* Velocity Chart */}
       <div className='col-span-12'>
-        <VelocityChartSection />
+        {velocityChartError && (
+          <ErrorPlaceholder
+            message='Unable to display velocity chart.'
+            errorCode={velocityChartError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!velocityChartError && (
+          <VelocityChartSection data={velocityChart} />
+        )}
       </div>
     </div>
   )

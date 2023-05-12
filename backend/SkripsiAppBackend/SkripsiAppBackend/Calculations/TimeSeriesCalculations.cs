@@ -1,4 +1,5 @@
 ﻿using Flurl.Http.Configuration;
+using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.UseCases.Extensions;
@@ -7,14 +8,14 @@ using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Calculations
 {
-    public class TimespanCalculations
+    public class TimeSeriesCalculations
     {
         private readonly CommonCalculations common;
         private readonly TeamEvmCalculations evm;
         private readonly Database database;
         private readonly IAzureDevopsService azureDevops;
 
-        public TimespanCalculations(
+        public TimeSeriesCalculations(
             CommonCalculations common,
             TeamEvmCalculations evm,
             Database database,
@@ -37,12 +38,17 @@ namespace SkripsiAppBackend.Calculations
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
             var reports = await database.Reports.ReadTeamReports(teamKey);
 
+            if (reports.Count == 0)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.NO_REPORT);
+            }
+
             var cpiTimeSeries = await Task.WhenAll(
                 reports
                     .OrderBy(report => report.StartDate)
                     .Select(async (report) =>
                     {
-                        var costPerformanceIndex = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, report.EndDate);
+                        var costPerformanceIndex = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, report.StartDate, report.EndDate);
 
                         return new CpiChartItem()
                         {
@@ -104,7 +110,7 @@ namespace SkripsiAppBackend.Calculations
             {
                 if (sprints.Count == 0)
                 {
-                    sprint.RemainingEffort = totalEffort.Result;
+                    sprint.RemainingEffort = totalEffort.Result - sprint.Effort;
                     sprints.Add(sprint);
                     return sprints;
                 }
@@ -185,23 +191,26 @@ namespace SkripsiAppBackend.Calculations
                     };
                 });
 
-            var items = await Task.WhenAll(itemTasks);
+            var items = (await Task.WhenAll(itemTasks)).OrderBy(item => item.Index).ToList();
 
-            var aggregation = items.Aggregate(
-                new VelocityChartAggregation(totalEffort.Result, totalDuration, items.ToList()),
-                (aggregation, item) => 
-                {
-                    var minAverageVelocity = aggregation.Effort / aggregation.Duration;
+            var remainingEffort = totalEffort.Result;
+            var remainingDuration = totalDuration;
 
-                    item.MinimumAverageVelocity = minAverageVelocity;
+            for (int i = 0; i < items.Count; i++)
+            {
+                var minAverageVelocity = remainingEffort / remainingDuration;
 
-                    aggregation.Effort -= item.Duration;
-                    aggregation.Duration -= item.Effort;
+                // Structs are immutable.
+                // See : https://stackoverflow.com/questions/51526/changing-the-value-of-an-element-in-a-list-of-structs
+                var item = items[i];
+                item.MinimumAverageVelocity = minAverageVelocity;
+                items[i] = item;
 
-                    return aggregation;
-                });
+                remainingEffort -= item.Effort;
+                remainingDuration -= item.Duration;
+            }
 
-            return aggregation.Items;
+            return items;
         }
     }
 }
