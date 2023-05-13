@@ -1,4 +1,5 @@
 import { Button } from "../Components/Common/Button"
+import { Logo } from "../Components/Common/Logo"
 import { AzureDevops } from "../common/icons"
 
 const OAuthSuccessPage = () => (
@@ -7,7 +8,7 @@ const OAuthSuccessPage = () => (
       <img src='/login-bg.png' className='object-cover h-full w-full' />
     </div>
     <div className='absolute top-20 left-auto right-auto z-10'>
-      App Logo Here
+      <Logo size={1} />
     </div>
     <div className='flex flex-col items-center relative z-10'>
       <div className='font-bold text-xl text-secondary-light underline mb-1'>Success!</div>
