@@ -26,7 +26,7 @@ const LoginPage = () => {
             <div className='mb-8'>
               <div className='font-semibold'>Features</div>
               <ul>
-                <li>- View health project health metrics</li>
+                <li>- View EVM-based project health metrics</li>
                 <li>- Forecast future costs</li>
                 <li>- Create monthly reports to keep track of health</li>
                 <li>- Customizable estimation formulas</li>
