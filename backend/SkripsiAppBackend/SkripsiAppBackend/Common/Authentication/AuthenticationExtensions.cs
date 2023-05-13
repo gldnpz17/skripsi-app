@@ -9,12 +9,14 @@ namespace SkripsiAppBackend.Common.Authentication
     {
         public static List<AuthenticationMiddleware.ProfileTeam> GetTeams(this ClaimsPrincipal principal)
         {
-            var teams = JsonSerializer.Deserialize<List<AuthenticationMiddleware.ProfileTeam>>(principal.FindFirstValue("teams"));
+            var teamsString = principal.FindFirstValue("teams");
 
-            if (teams == null)
+            if (teamsString == null)
             {
                 throw new Exception("Unable to access profile teams");
             }
+
+            var teams = JsonSerializer.Deserialize<List<AuthenticationMiddleware.ProfileTeam>>(teamsString);
 
             return teams;
         }

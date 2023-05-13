@@ -2,6 +2,7 @@ import { useQuery } from "react-query"
 import { Link, Outlet, useMatch } from "react-router-dom"
 import { getSelfProfile } from "../api-requests/Profile"
 import { Configuration, Dashboard, LogOut, Project, Team } from "../common/icons"
+import { Logo } from "../Components/Common/Logo"
 
 const SidebarItem = ({ icon, label, href, pathMatch }) => {
   const match = useMatch(pathMatch ?? href)
@@ -37,8 +38,8 @@ const LayoutSidebar = () => {
   return (
     <div className='flex h-full bg-dark-2 text-white'>
       <div className='flex flex-col w-52 pl-6 pt-6'>
-        <div className='mb-8'>
-          App Logo Here
+        <div className='mb-8 pr-6'>
+          <Logo />
         </div>
         <div className='flex flex-col gap-6'>
           {SidebarItems.map(item => (
