@@ -13,6 +13,7 @@ import { readAvailableReports, readTeamReports } from "../api-requests/Reports"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Button } from "../Components/Common/Button"
 import { withAuth } from "../HigherOrderComponents/withAuth"
+import { MathJax } from "better-react-mathjax"
 
 const SectionTitle = ({ children }) => (
   <div className='text-sm items-center font-bold text-gray-400 mb-4'>
@@ -105,16 +106,17 @@ const RadioGroup = ({ label, options=[], value, onChange }) => {
 
   return (
     <div className='flex w-full'>
-      <div className='flex-grow'>{label}</div>
-      <fieldset className='w-48'>
-          {options.map(({ value, label }) => (
-            <div key={value} >
-              <label className='flex items-center'>
-                <input type='radio' className='mr-1' {...getInputProps(value)} />
-                {label}
-              </label>
-            </div>
-          ))}
+      <div className='w-60 mr-4'>{label}</div>
+      <fieldset className='flex-grow'>
+        {options.map(({ value, label, information }) => (
+          <div key={value} className="">
+            <label className='flex items-center'>
+              <input type='radio' className='mr-1' {...getInputProps(value)} />
+              {label}
+            </label>
+            {information}
+          </div>
+        ))}
       </fieldset>
     </div>
   )
@@ -125,38 +127,25 @@ const GeneralSection = ({ team }) => {
     mutateAsync: updateTeamAsync
   } = useSimpleMutation(updateTeam, [['teams']])
 
-  const reducer = (state, { field, data }) => {
-    const newState = {...state}
-
-    if (field === 'eac' && data === 'Derived' && state.etc === 'Derived') {
-      newState.etc = 'Typical'
-    }
-    if (field === 'etc' && data === 'Derived' && state.eac === 'Derived') {
-      newState.eac = 'Basic'
-    }
-    newState[field] = data
-    return newState
-  }
-  const [{ etc, eac }, dispatch] = useReducer(reducer, { eac: team.eacFormula, etc: team.etcFormula })
+  const [eac, setEac] = useState(team.eacFormula)
 
   useEffect(() => {
     updateTeamAsync(() => ({
       organizationName: team.organization.name,
       projectId: team.project.id,
       teamId: team.id,
-      eacFormula: eac,
-      etcFormula: etc
+      eacFormula: eac
     }))()
-  }, [eac, etc])
+  }, [eac])
 
   return (
     <div className='mb-10'>
       <SectionTitle>General</SectionTitle>
-      <div className='flex flex-col gap-4 max-w-md'>
+      <div className='flex flex-col gap-4'>
         <FormInput
           label='Team project deadline'
           type='date'
-          stretch
+          labelClassName='w-60'
           defaultValue={team.deadline?.toISODate()}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
@@ -168,7 +157,7 @@ const GeneralSection = ({ team }) => {
         <FormInput
           label='Cost per Effort'
           type='number'
-          stretch
+          labelClassName='w-60'
           defaultValue={team.costPerEffort}
           onChange={updateTeamAsync(({ target }) => ({
             organizationName: team.organization.name,
@@ -180,23 +169,44 @@ const GeneralSection = ({ team }) => {
         <RadioGroup
           label='EAC Formula'
           options={[
-            { value: 'Derived', label: 'Derived' },
-            { value: 'Basic', label: 'Basic' },
-            { value: 'Typical', label: 'Typical' },
-            { value: 'Atypical', label: 'Atypical' }
+            {
+              value: 'Typical',
+              label: 'Typical',
+              information: (
+                <div className='border border-gray-700 rounded-md bg-dark-2 p-4 mt-2 mb-4'>
+                  <div className='text-sm'>Use this when cost performance is relatively steady. (refer to the CPI chart in the dashboard)</div>
+                  <MathJax>{`\\[EAC = \\frac{BAC}{CPI}\\]`}</MathJax>
+                  <div className='flex'>
+                    <div className='text-sm'>
+                      <div><span className='text-primary-dark font-semibold'>EAC</span> = Estimate at Completion (Estimated cost to complete the project)</div>
+                      <div><span className='text-primary-dark font-semibold'>BAC</span> = Budget at Completion (Total project budget)</div>
+                      <div><span className='text-primary-dark font-semibold'>CPI</span> = Cost Performance Index (How efficient our spendings are)</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            {
+              value: 'Atypical',
+              label: 'Atypical',
+              information: (
+                <div className='border border-gray-700 rounded-md bg-dark-2 p-4 mt-2 mb-4'>
+                  <div className='text-sm'>Use this when there are financial issues. (refer to the CPI chart in the dashboard)</div>
+                  <MathJax>{`\\[EAC = BAC + (AC - EV)\\]`}</MathJax>
+                  <div className='flex'>
+                    <div className='text-sm'>
+                      <div><span className='text-primary-dark font-semibold'>EAC</span> = Estimate at Completion (Estimated cost to complete the project)</div>
+                      <div><span className='text-primary-dark font-semibold'>AC</span> = Actual Cost (Total amount of money spent)</div>
+                      <div><span className='text-primary-dark font-semibold'>BAC</span> = Budget at Completion (Total project budget)</div>
+                      <div><span className='text-primary-dark font-semibold'>EV</span> = Earned Value (Value of work done)</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
           ]}
           value={eac}
-          onChange={(data) => dispatch({ field: 'eac', data })}
-        />
-        <RadioGroup
-          label='ETC Formula'
-          options={[
-            { value: 'Derived', label: 'Derived' },
-            { value: 'Typical', label: 'Typical' },
-            { value: 'Atypical', label: 'Atypical' }
-          ]}
-          value={etc}
-          onChange={(data) => dispatch({ field: 'etc', data })}
+          onChange={(data) => setEac(data)}
         />
       </div>
     </div>
@@ -292,7 +302,9 @@ const Page = () => {
             />
           )}
           {!reportsError && !details.team.archived && (
-            <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
+            <section id='reports'>
+              <ReportsSection selectedTeam={team} {...{ availableReports, reportMetrics }} />
+            </section>
           )}
         </>
       )}

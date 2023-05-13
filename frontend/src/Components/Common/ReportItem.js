@@ -24,10 +24,9 @@ const ReportItem = ({
       id,
       startDate
     },
-    healthMetrics: {
-      schedulePerformanceIndex,
-      costPerformanceIndex
-    }
+    schedulePerformanceIndex,
+    costPerformanceIndex,
+    errors
   } 
 }) => (
   <ReportItemContainer href={`team/${organizationName}/${projectId}/${teamId}/reports/${id}/edit`}>
@@ -36,7 +35,7 @@ const ReportItem = ({
     <Speedometer className='h-4 mr-2' />
     <ReportStatus status={Format.performanceIndex(schedulePerformanceIndex).status} />
     <Cash className='h-4 mr-2 ml-4' />
-    <ReportStatus status={Format.performanceIndex(costPerformanceIndex).status} />
+    <ReportStatus status={errors.includes('ZERO_EXPENDITURE') ? 'Healthy' : Format.performanceIndex(costPerformanceIndex).status} />
   </ReportItemContainer>
 )
 

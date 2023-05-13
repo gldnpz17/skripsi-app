@@ -2,6 +2,22 @@
 {
     public static class DateTimeExtensions
     {
+        public static DateTime Clamp(this DateTime dateTime, DateTime low, DateTime high)
+        {
+            if (dateTime.Ticks < low.Ticks)
+            {
+                return low;
+            }
+            else if (dateTime.Ticks > high.Ticks)
+            {
+                return high;
+            }
+            else
+            {
+                return dateTime;
+            }
+        }
+
         public static double WorkingDaysUntil(this DateTime startDate, DateTime endDate, List<DayOfWeek> workDays)
         {
             var currentDate = new DateTime(startDate.Ticks);

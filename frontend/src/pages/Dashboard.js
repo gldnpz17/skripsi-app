@@ -99,29 +99,51 @@ const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading, teamPinned, to
 
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, BarController, BarElement, Title, Tooltip, Legend, TimeScale)
 
-const ReportsList = ({ selectedTeam, availableReports, reportMetrics }) => (
-  <div>
-    <div className='flex text-sm items-center mb-4'>
-      <span className='flex-grow font-bold text-gray-400'>Recent Reports</span>
-      <ExternalLink>
-        See More
-      </ExternalLink>
+const ReportsList = ({ selectedTeam, availableReports, reportMetrics, itemLimit = 3 }) => {
+  const { blankReports, reports } = useMemo(() => {
+    if (!itemLimit) {
+      return ({
+        blankReports: availableReports,
+        reports: reportMetrics
+      })
+    }
+
+    const blankReports = availableReports?.slice(0, itemLimit) ?? []
+
+    if (blankReports.length >= itemLimit) {
+      return ({ blankReports, reports: [] })
+    }
+
+    const reports = reportMetrics.slice(0, itemLimit - blankReports.length)
+
+    return ({ blankReports, reports })
+  }, [availableReports, reportMetrics, itemLimit])
+
+  return (
+    <div>
+      <div className='flex text-sm items-center mb-4'>
+        <span className='flex-grow font-bold text-gray-400'>Recent Reports</span>
+        <ExternalLink to={`/teams/${selectedTeam.organization.name}/${selectedTeam.project.id}/${selectedTeam.id}#reports`}>
+          See More
+        </ExternalLink>
+      </div>
+      <div className='flex flex-col gap-4'>
+        {blankReports?.map(report => (
+          <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
+        ))}
+        {reports.map(report => (
+          <ReportItem
+            key={report.report.startDate}
+            organizationName={selectedTeam.organization.name}
+            projectId={selectedTeam.project.id}
+            teamId={selectedTeam.id}
+            reportMetric={report}
+          />
+        ))}
+      </div>
     </div>
-    <div className='flex flex-col gap-4'>
-      {availableReports?.map(report => (
-        <BlankReportItem key={Format.reportKey(report)} {...{ report, selectedTeam }} />
-      ))}
-      {reportMetrics.map(reportMetric => (
-        <ReportItem
-          key={reportMetric.report.startDate}
-          organizationName={selectedTeam.organization.name}
-          projectId={selectedTeam.project.id}
-          teamId={selectedTeam.id}
-          {...{ reportMetric }} />
-      ))}
-    </div>
-  </div>
-)
+  )
+}
 
 const TeamDetailsSkeleton = () => (
   <div className='grid grid-cols-12 gap-x-4 gap-y-6 overflow-hidden'>

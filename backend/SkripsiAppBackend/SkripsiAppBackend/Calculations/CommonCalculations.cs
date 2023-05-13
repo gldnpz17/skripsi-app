@@ -2,7 +2,6 @@
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
-using static SkripsiAppBackend.UseCases.MetricCalculations;
 
 namespace SkripsiAppBackend.Calculations
 {
@@ -24,6 +23,12 @@ namespace SkripsiAppBackend.Calculations
             public DateTime EndDate { get; set; }
             public double Effort { get; set; }
             public double WorkFactor { get; set; }
+        }
+
+        public struct SprintWorkItems
+        {
+            public Sprint Sprint { get; set; }
+            public List<WorkItem> WorkItems { get; set; }
         }
 
         public async Task<double> CalculateTeamTotalEffort(string organizationName, string projectId, string teamId)
@@ -89,6 +94,32 @@ namespace SkripsiAppBackend.Calculations
             }
 
             return (DateTime)earliestSprint.StartDate;
+        }
+
+        public async Task<List<TimespanAdjustedSprint>> ReadAdjustedSprints(
+            string organizationName, 
+            string projectId,
+            string teamId,
+            DateTime startDate,
+            DateTime endDate)
+        {
+            var sprints = (await azureDevops.ReadTeamSprints(organizationName, projectId, teamId))
+                .Where(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
+                .Where(sprint =>
+                    (sprint.StartDate >= startDate && sprint.EndDate <= endDate) ||
+                    (sprint.StartDate <= startDate && sprint.EndDate >= startDate) ||
+                    (sprint.StartDate <= endDate && sprint.EndDate >= endDate)
+                )
+                .Select(async (sprint) =>
+                {
+                    var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
+
+                    return AdjustSprint(sprint, workItems, startDate, endDate);
+                });
+
+            var adjustedSprints = await Task.WhenAll(sprints);
+
+            return adjustedSprints.ToList();
         }
 
         public TimespanAdjustedSprint AdjustSprint(

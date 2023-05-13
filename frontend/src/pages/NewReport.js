@@ -13,7 +13,6 @@ import { useSimpleMutation } from "../Hooks/useSimpleMutation"
 import { TitleSection } from "../Components/ReportCommon/TitleSection"
 import { SprintsSection } from "../Components/ReportCommon/SprintSection"
 import { DataSection } from "../Components/ReportCommon/DataSection"
-import { MetricsSection } from "../Components/ReportCommon/MetricSection"
 import { withAuth } from "../HigherOrderComponents/withAuth"
 
 const ActionSection = ({ organizationName, projectId, teamId, start, end, expenditure }) => {
@@ -75,7 +74,6 @@ const Page = () => {
           <ActionSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
         </div>
       </div>
-      <MetricsSection {...{ organizationName, projectId, teamId, start, end, expenditure }} />
     </div>
   )
 }

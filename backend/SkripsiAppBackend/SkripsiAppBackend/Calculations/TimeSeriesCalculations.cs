@@ -46,6 +46,7 @@ namespace SkripsiAppBackend.Calculations
             var cpiTimeSeries = await Task.WhenAll(
                 reports
                     .OrderBy(report => report.StartDate)
+                    .Where(report => report.Expenditure != 0)
                     .Select(async (report) =>
                     {
                         var costPerformanceIndex = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, report.StartDate, report.EndDate);

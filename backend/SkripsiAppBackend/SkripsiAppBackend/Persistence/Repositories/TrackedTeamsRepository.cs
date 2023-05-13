@@ -138,7 +138,6 @@ WHERE
             DateTime? deadline,
             int? costPerEffort,
             string? eacFormula,
-            string? etcFormula,
             bool? archived)
         {
             var sql = @$"
@@ -146,7 +145,6 @@ UPDATE tracked_teams SET
     deadline = COALESCE(@Deadline, deadline),
     cost_per_effort = COALESCE(@CostPerEffort, cost_per_effort),
     eac_formula = COALESCE(@EacFormula, eac_formula),
-    etc_formula = COALESCE(@EtcFormula, etc_formula),
     archived = COALESCE(@Archived, archived)
 WHERE
     organization_name = @OrganizationName AND
@@ -164,7 +162,6 @@ WHERE
                 Deadline = deadline,
                 CostPerEffort = costPerEffort,
                 EacFormula = eacFormula,
-                EtcFormula = etcFormula,
                 Archived = archived
             };
 

@@ -44,7 +44,7 @@ builder.Services.AddScoped<AccessTokenService>();
 
 builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));
 
-builder.Services.AddScoped<MetricCalculations>();
+builder.Services.AddScoped<ReportCalculations>();
 builder.Services.AddScoped<CommonCalculations>();
 builder.Services.AddScoped<TeamEvmCalculations>();
 builder.Services.AddScoped<TimeSeriesCalculations>();

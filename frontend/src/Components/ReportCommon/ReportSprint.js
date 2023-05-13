@@ -2,9 +2,9 @@ import { Format } from "../../common/Format";
 
 const ReportSprint = ({ 
   timespanSprint: {
-    accountedEffort,
-    accountedEndDate,
-    accountedStartDate,
+    effort: accountedEffort,
+    endDate: accountedEndDate,
+    startDate: accountedStartDate,
     sprint: {
       startDate,
       endDate

@@ -5,7 +5,6 @@ using SkripsiAppBackend.UseCases.Extensions;
 using System.Security.Cryptography.X509Certificates;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
-using static SkripsiAppBackend.UseCases.MetricCalculations;
 
 namespace SkripsiAppBackend.Calculations
 {
@@ -28,9 +27,9 @@ namespace SkripsiAppBackend.Calculations
         public enum EstimateAtCompletionFormulas
         {
             Unknown,
-            Basic,
+            Typical,
             Atypical,
-            Typical
+            Typical2
         }
 
         public static class FormulaHelpers
@@ -72,9 +71,9 @@ namespace SkripsiAppBackend.Calculations
         {
             return eacFormula switch
             {
-                EstimateAtCompletionFormulas.Basic => await CalculateBasic(),
+                EstimateAtCompletionFormulas.Typical => await CalculateBasic(),
+                EstimateAtCompletionFormulas.Typical2 => await CalculateTypical2(),
                 EstimateAtCompletionFormulas.Atypical => await CalculateAtypical(),
-                EstimateAtCompletionFormulas.Typical => await CalculateTypical(),
                 _ => throw new Exception("Unknown formula")
             };
 
@@ -99,7 +98,7 @@ namespace SkripsiAppBackend.Calculations
                 return actualCost.Result + budgetAtCompletion.Result - earnedValue.Result;
             }
 
-            async Task<long> CalculateTypical()
+            async Task<long> CalculateTypical2()
             {
                 var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
                 var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
@@ -114,8 +113,13 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<double> CalculateSchedulePerformanceIndex(string organizationName, string projectId, string teamId, DateTime now)
         {
-            var actualEarnedValueTask = CalculateActualEarnedValue(organizationName, projectId, teamId, now);
-            var plannedValueTask = CalculatePlannedValue(organizationName, projectId, teamId, now);
+            return await CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, DateTime.MinValue, now);
+        }
+
+        public async Task<double> CalculateSchedulePerformanceIndex(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
+            var actualEarnedValueTask = CalculateActualEarnedValue(organizationName, projectId, teamId, start, end);
+            var plannedValueTask = CalculatePlannedValue(organizationName, projectId, teamId, start, end);
 
             await Task.WhenAll(actualEarnedValueTask, plannedValueTask);
 
@@ -165,6 +169,12 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculatePlannedValue(string organizationName, string projectId, string teamId, DateTime now)
         {
+            var startDate = await common.GetTeamStartDate(organizationName, projectId, teamId);
+            return await CalculatePlannedValue(organizationName, projectId, teamId, startDate, now);
+        }
+
+        public async Task<long> CalculatePlannedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var team = database.TrackedTeams.ReadByKey(teamKey);
@@ -182,7 +192,7 @@ namespace SkripsiAppBackend.Calculations
             var deadline = (DateTime)team.Result.Deadline;
 
             var projectDuration = startDate.Result.WorkingDaysUntil(deadline, workingDays.Result);
-            var actualDuration = startDate.Result.WorkingDaysUntil(now, workingDays.Result);
+            var actualDuration = start.Clamp(startDate.Result, deadline).WorkingDaysUntil(end, workingDays.Result);
 
             var plannedValue = (Convert.ToInt64(actualDuration) * budgetAtCompletion.Result) / Convert.ToInt64(projectDuration);
 

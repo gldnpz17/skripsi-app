@@ -11,8 +11,8 @@ const mapAvailableReport = ({
 })
 
 const mapTimespanSprint = ({
-  accountedStartDate,
-  accountedEndDate,
+  startDate: accountedStartDate,
+  endDate: accountedEndDate,
   sprint: {
     startDate,
     endDate,
@@ -26,8 +26,8 @@ const mapTimespanSprint = ({
     startDate: DateTime.fromISO(startDate),
     endDate: DateTime.fromISO(endDate)
   },
-  accountedStartDate: DateTime.fromISO(accountedStartDate),
-  accountedEndDate: DateTime.fromISO(accountedEndDate)
+  startDate: DateTime.fromISO(accountedStartDate),
+  endDate: DateTime.fromISO(accountedEndDate)
 })
 
 const mapReportMetric = ({

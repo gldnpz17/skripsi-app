@@ -17,6 +17,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Security.AccessControl;
+using static SkripsiAppBackend.Calculations.CommonCalculations;
 using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
 using static SkripsiAppBackend.Calculations.TimeSeriesCalculations;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
@@ -30,7 +31,6 @@ namespace SkripsiAppBackend.Controllers
         private readonly IAzureDevopsService azureDevopsService;
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
-        private readonly MetricCalculations metricCalculations;
         private readonly TeamEvmCalculations evm;
         private readonly CommonCalculations common;
         private readonly MiscellaneousCalculations misc;
@@ -41,7 +41,6 @@ namespace SkripsiAppBackend.Controllers
             IAzureDevopsService azureDevopsService, 
             Database database,
             IAuthorizationService authorizationService,
-            MetricCalculations metricCalculations,
             TeamEvmCalculations evm,
             CommonCalculations common,
             MiscellaneousCalculations misc,
@@ -51,7 +50,6 @@ namespace SkripsiAppBackend.Controllers
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
-            this.metricCalculations = metricCalculations;
             this.evm = evm;
             this.common = common;
             this.misc = misc;
@@ -246,14 +244,14 @@ namespace SkripsiAppBackend.Controllers
                 projectId,
                 teamId,
                 DateTime.Now,
-                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EtcFormula)
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula)
             );
             var estimateToCompletion = evm.CalculateEstimateToCompletion(
                 organizationName,
                 projectId,
                 teamId,
                 DateTime.Now,
-                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EtcFormula)
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula)
             );
 
             await Task.WhenAll(remainingBudget, actualCost, budgetAtCompletion, estimateAtCompletion, estimateToCompletion);
@@ -376,7 +374,7 @@ namespace SkripsiAppBackend.Controllers
                 Team = await GetTeam(organizationName, projectId, teamId)
             };
 
-            async Task<List<MetricCalculations.SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
+            async Task<List<SprintWorkItems>> GetLatestSprints(List<IAzureDevopsService.Sprint> sprints, int count = 3)
             {
                 var latestCompletedSprints = sprints
                     .FindAll(sprint => 
@@ -385,7 +383,7 @@ namespace SkripsiAppBackend.Controllers
                     .OrderBy(sprint => sprint.EndDate)
                     .Take(count);
 
-                var sprintWorkItems = new List<MetricCalculations.SprintWorkItems>();
+                var sprintWorkItems = new List<SprintWorkItems>();
                 var fetchTasks = latestCompletedSprints.Select(async (sprint) =>
                 {
                     var workItems = await azureDevopsService.ReadSprintWorkItems(
@@ -394,7 +392,7 @@ namespace SkripsiAppBackend.Controllers
                         teamId,
                         sprint.Id);
 
-                    sprintWorkItems.Add(new MetricCalculations.SprintWorkItems()
+                    sprintWorkItems.Add(new SprintWorkItems()
                     {
                         Sprint = sprint,
                         WorkItems = workItems
@@ -469,7 +467,6 @@ namespace SkripsiAppBackend.Controllers
             public DateTime? Deadline { get; set; }
             public int? CostPerEffort { get; set; }
             public string? EacFormula { get; set; }
-            public string? EtcFormula { get; set; }
             public bool? Archived { get; set; }
         }
 
@@ -493,7 +490,6 @@ namespace SkripsiAppBackend.Controllers
                                                    dto.Deadline,
                                                    dto.CostPerEffort,
                                                    dto.EacFormula,
-                                                   dto.EtcFormula,
                                                    dto.Archived);
 
             return Ok();
