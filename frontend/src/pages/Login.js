@@ -50,7 +50,7 @@ const LoginPage = () => {
       <div className='flex-grow relative z-20 bg-white'>
         <div className='w-0 h-0 min-w-full min-h-full'>
           <div className='h-full w-full p-16 flex items-center justify-center'>
-            <img src='/app-screenshot-v2.png' className='shadow-2xl shadow-dark-2 rounded' />
+            <img src='/app-screenshot-v3.png' className='shadow-2xl shadow-dark-2 rounded' />
           </div>
         </div>
       </div>
