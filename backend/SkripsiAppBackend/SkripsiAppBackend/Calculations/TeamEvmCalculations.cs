@@ -215,7 +215,10 @@ namespace SkripsiAppBackend.Calculations
 
             var completedEffort = sprintsTask.Result
                 .Where(sprint => sprint.Sprint.StartDate.HasValue && sprint.Sprint.EndDate.HasValue)
-                .Where(sprint => sprint.Sprint.StartDate >= start && sprint.Sprint.EndDate <= end)
+                .Where(sprint => 
+                    ((DateTime)sprint.Sprint.StartDate).IsBetween(start, end) ||
+                    ((DateTime)sprint.Sprint.EndDate).IsBetween(start, end)
+                )
                 .Select(sprint => common.AdjustSprint(
                     sprint.Sprint,
                     sprint.WorkItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(),

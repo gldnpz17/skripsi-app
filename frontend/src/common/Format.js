@@ -5,6 +5,9 @@ const Format = {
     // TODO: You know, we shouldn't be using floating-point numbers when working with money right?
     return Intl.NumberFormat("id", { style: "currency", currency: "IDR" }).format(Math.round(amount))
   },
+  severity: (value, ranges) => {
+    return ranges.findIndex(predicate => predicate(value))
+  },
   performanceIndex: (value) => {
     let status = 'Healthy'
     if (value < 1) {

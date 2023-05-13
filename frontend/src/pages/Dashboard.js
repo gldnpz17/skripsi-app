@@ -609,7 +609,13 @@ const PunctualitySection = ({ spi: { schedulePerformanceIndex } }) => (
     label='Punctuality'
     icon={CheckeredFlag}
     status={schedulePerformanceIndex >= 1 ? 'Ahead of Schedule' : 'Behind Schedule'}
-    severity={2}
+    severity={
+      Format.severity(schedulePerformanceIndex, [
+        value => value > 1.05,
+        value => value >= 0.95 && value <= 1.05,
+        value => value < 0.95
+      ])
+    }
     meter={{
       minLabel: '100% late',
       midLabel: 'On time',
@@ -629,7 +635,13 @@ const BudgetSection = ({ cpi: { costPerformanceIndex } }) => (
     label='Budget'
     icon={CashStack}
     status={costPerformanceIndex >= 1 ? 'Under Budget' : 'Over Budget'}
-    severity={2}
+    severity={
+      Format.severity(costPerformanceIndex, [
+        value => value > 1.05,
+        value => value >= 0.95 && value <= 1.05,
+        value => value < 0.95
+      ])
+    }
     meter={{
       minLabel: '100% over budget',
       midLabel: 'On budget',

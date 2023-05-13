@@ -2,6 +2,11 @@
 {
     public static class DateTimeExtensions
     {
+        public static bool IsBetween(this DateTime dateTime, DateTime low, DateTime high)
+        {
+            return dateTime >= low && dateTime <= high;
+        }
+
         public static DateTime Clamp(this DateTime dateTime, DateTime low, DateTime high)
         {
             if (dateTime.Ticks < low.Ticks)
