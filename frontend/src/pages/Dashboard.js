@@ -944,9 +944,9 @@ const Page = () => {
     if (!teams) return
 
     const storedTeamId = window.localStorage.getItem('defaultTeamId')
-    const team = teams.find(team => team.id === storedTeamId)
+    const team = teams.find(team => team.id === storedTeamId) ?? teams.length > 0 ? teams[0] : undefined
     setSelectedTeam(team)
-  }, [teamsLoading])
+  }, [teamsLoading, teams])
 
   const setSelectedTeamProxy = (team) => {
     window.localStorage.setItem('defaultTeamId', team.id)
