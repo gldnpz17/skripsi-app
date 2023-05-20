@@ -11,11 +11,18 @@ namespace SkripsiAppBackend.Common.Authorization
             AllowTeamMemberRequirement requirement, 
             TrackedTeam resource)
         {
-            var userTeams = context.User.GetTeams();
-
-            if (userTeams.Any(userTeam => userTeam.Equals(resource)))
+            try
             {
-                context.Succeed(requirement);
+                var userTeams = context.User.GetTeams();
+
+                if (userTeams.Any(userTeam => userTeam.Equals(resource)))
+                {
+                    context.Succeed(requirement);
+                }
+            }
+            catch (Exception _)
+            {
+                context.Fail();
             }
 
             return Task.CompletedTask;

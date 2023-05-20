@@ -11,6 +11,7 @@ using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Models;
 using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using SkripsiAppBackend.Services.DateTimeService;
 using SkripsiAppBackend.Services.ObjectCachingService;
 using SkripsiAppBackend.UseCases;
 using System.Collections.Specialized;
@@ -31,6 +32,7 @@ namespace SkripsiAppBackend.Controllers
         private readonly IAzureDevopsService azureDevopsService;
         private readonly Database database;
         private readonly IAuthorizationService authorizationService;
+        private readonly IDateTimeService dateTimeService;
         private readonly TeamEvmCalculations evm;
         private readonly CommonCalculations common;
         private readonly MiscellaneousCalculations misc;
@@ -41,6 +43,7 @@ namespace SkripsiAppBackend.Controllers
             IAzureDevopsService azureDevopsService, 
             Database database,
             IAuthorizationService authorizationService,
+            IDateTimeService dateTimeService,
             TeamEvmCalculations evm,
             CommonCalculations common,
             MiscellaneousCalculations misc,
@@ -50,6 +53,7 @@ namespace SkripsiAppBackend.Controllers
             this.azureDevopsService = azureDevopsService;
             this.database = database;
             this.authorizationService = authorizationService;
+            this.dateTimeService = dateTimeService;
             this.evm = evm;
             this.common = common;
             this.misc = misc;
@@ -177,6 +181,7 @@ namespace SkripsiAppBackend.Controllers
         {
             public DateTime StartDate { get; set; }
             public DateTime Deadline { get; set; }
+            public DateTime Now { get; set; }
             public DateTime EstimatedCompletionDate { get; set; }
         }
 
@@ -192,7 +197,7 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var spi = await evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, DateTime.Now);
+            var spi = await evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
 
             return new SpiMetric()
             {
@@ -212,7 +217,7 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var cpi = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, DateTime.Now);
+            var cpi = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
 
             return new CpiMetric()
             {
@@ -235,22 +240,22 @@ namespace SkripsiAppBackend.Controllers
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
             var team = await database.TrackedTeams.ReadByKey(teamKey);
 
-            var remainingBudget = misc.CalculateRemainingBudget(organizationName, projectId, teamId, DateTime.Now);
-            var actualCost = evm.CalculateActualCost(organizationName, projectId, teamId, DateTime.Now);
+            var remainingBudget = misc.CalculateRemainingBudget(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var actualCost = evm.CalculateActualCost(organizationName, projectId, teamId, dateTimeService.GetNow());
             var budgetAtCompletion = evm.CalculateBudgetAtCompletion(organizationName, projectId, teamId);
 
             var estimateAtCompletion = evm.CalculateEstimateAtCompletion(
                 organizationName,
                 projectId,
                 teamId,
-                DateTime.Now,
+                dateTimeService.GetNow(),
                 FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula)
             );
             var estimateToCompletion = evm.CalculateEstimateToCompletion(
                 organizationName,
                 projectId,
                 teamId,
-                DateTime.Now,
+                dateTimeService.GetNow(),
                 FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula)
             );
 
@@ -294,7 +299,7 @@ namespace SkripsiAppBackend.Controllers
 
             var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
             var deadline = (DateTime)team.Deadline;
-            var estimatedEndDate = misc.CalculateEstimatedCompletionDate(organizationName, projectId, teamId, DateTime.Now);
+            var estimatedEndDate = misc.CalculateEstimatedCompletionDate(organizationName, projectId, teamId, dateTimeService.GetNow());
 
             await Task.WhenAll(startDate, estimatedEndDate);
 
@@ -302,6 +307,7 @@ namespace SkripsiAppBackend.Controllers
             {
                 StartDate = startDate.Result,
                 Deadline = deadline,
+                Now = dateTimeService.GetNow(),
                 EstimatedCompletionDate = estimatedEndDate.Result,
             };
         }

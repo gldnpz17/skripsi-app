@@ -660,6 +660,7 @@ const TimelineSection = ({
   data: {
     startDate,
     deadline,
+    now,
     estimatedCompletionDate
   }
 }) => (
@@ -668,23 +669,23 @@ const TimelineSection = ({
       {
         date: startDate,
         label: 'Start date',
-        info: Format.relativeTime(Math.round(startDate.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })
+        info: Format.relativeTime(Math.round(startDate.diff(now.startOf('day'), 'days').days), 'day', { ahead: 'from now', behind: 'ago' })
       },
       {
-        date: DateTime.now(),
+        date: now,
         label: 'Today',
         info: null
       },
       {
         date: deadline,
         label: 'Deadline',
-        info: Format.relativeTime(Math.round(deadline.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })
+        info: Format.relativeTime(Math.round(deadline.diff(now.startOf('day'), 'days').days), 'day', { ahead: 'from now', behind: 'ago' })
       },
       {
         date: estimatedCompletionDate,
         label: 'Estimated completion',
         // 13 days behind schedule, 20 days from now
-        info: `${Format.relativeTime(Math.round(deadline.diff(estimatedCompletionDate, 'days').days), 'day', { ahead: 'ahead of schedule', behind: 'behind schedule' })}, ${Format.relativeTime(Math.round(estimatedCompletionDate.diffNow('days').days), 'day', { ahead: 'from now', behind: 'ago' })}`
+        info: `${Format.relativeTime(Math.round(deadline.diff(estimatedCompletionDate, 'days').days), 'day', { ahead: 'ahead of schedule', behind: 'behind schedule' })}, ${Format.relativeTime(Math.round(estimatedCompletionDate.diff(now.startOf('day'),'days').days), 'day', { ahead: 'from now', behind: 'ago' })}`
       }
     ].sort((a, b) => a.date.diff(b.date, 'days'))}
   />

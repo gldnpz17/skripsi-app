@@ -1,10 +1,12 @@
 ﻿using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.UseCases.Extensions;
 using System.Security.Cryptography.X509Certificates;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
+using static SkripsiAppBackend.Services.LoggingService.LoggingService.CalculationLog;
 
 namespace SkripsiAppBackend.Calculations
 {
@@ -12,15 +14,18 @@ namespace SkripsiAppBackend.Calculations
     {
         private readonly Database database;
         private readonly IAzureDevopsService azureDevops;
+        private readonly LoggingService logging;
         private readonly CommonCalculations common;
 
         public TeamEvmCalculations(
             Database database,
             IAzureDevopsService azureDevops,
+            LoggingService logging,
             CommonCalculations common)
         {
             this.database = database;
             this.azureDevops = azureDevops;
+            this.logging = logging;
             this.common = common;
         }
 
@@ -59,23 +64,47 @@ namespace SkripsiAppBackend.Calculations
             DateTime now,
             EstimateAtCompletionFormulas eacFormula)
         {
+            var log = logging.CreateCalculationLog("Estimate to Completion (ETC)");
+            log.Argument(new Args(organizationName, projectId, teamId, now, eacFormula));
+
             var estimateAtCompletion = CalculateEstimateAtCompletion(organizationName, projectId, teamId, now, eacFormula);
             var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
 
             await Task.WhenAll(estimateAtCompletion, actualCost);
 
-            return estimateAtCompletion.Result - actualCost.Result;
+            var estimateToCompletion = estimateAtCompletion.Result - actualCost.Result;
+
+            log.Record($"EAC = {estimateAtCompletion.Result}");
+            log.Record($"AC = {actualCost.Result}");
+            log.Record($"ETC = {estimateToCompletion}");
+
+            log.Finish();
+
+            return estimateToCompletion;
         }
 
-        public async Task<long> CalculateEstimateAtCompletion(string organizationName, string projectId, string teamId, DateTime now, EstimateAtCompletionFormulas eacFormula)
+        public async Task<long> CalculateEstimateAtCompletion(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now,
+            EstimateAtCompletionFormulas eacFormula)
         {
-            return eacFormula switch
+            var log = logging.CreateCalculationLog("Estimate at Completion (EAC)");
+            log.Argument(new Args(organizationName, projectId, teamId, now, eacFormula));
+
+            var eac = eacFormula switch
             {
                 EstimateAtCompletionFormulas.Typical => await CalculateBasic(),
-                EstimateAtCompletionFormulas.Typical2 => await CalculateTypical2(),
                 EstimateAtCompletionFormulas.Atypical => await CalculateAtypical(),
+                EstimateAtCompletionFormulas.Typical2 => await CalculateTypical2(), // Just here for backwards compatibility. TODO: remove.
                 _ => throw new Exception("Unknown formula")
             };
+
+            log.Record($"EAC = {eac}");
+            log.Finish();
+
+            return eac;
 
             async Task<long> CalculateBasic()
             {
@@ -83,6 +112,9 @@ namespace SkripsiAppBackend.Calculations
                 var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
 
                 await Task.WhenAll(costPerformanceIndex, budgetAtCompletion);
+
+                log.Record($"CPI = {costPerformanceIndex.Result}");
+                log.Record($"BAC = {budgetAtCompletion.Result}");
 
                 return Convert.ToInt64(Convert.ToDouble(budgetAtCompletion.Result) / costPerformanceIndex.Result);
             }
@@ -94,6 +126,10 @@ namespace SkripsiAppBackend.Calculations
                 var earnedValue = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
 
                 await Task.WhenAll(actualCost, budgetAtCompletion, earnedValue);
+
+                log.Record($"AC = {actualCost.Result}");
+                log.Record($"BAC = {budgetAtCompletion.Result}");
+                log.Record($"EV = {earnedValue.Result}");
 
                 return actualCost.Result + budgetAtCompletion.Result - earnedValue.Result;
             }
@@ -116,14 +152,28 @@ namespace SkripsiAppBackend.Calculations
             return await CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, DateTime.MinValue, now);
         }
 
-        public async Task<double> CalculateSchedulePerformanceIndex(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        public async Task<double> CalculateSchedulePerformanceIndex(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end)
         {
+            var log = logging.CreateCalculationLog("Schedule Performance Index (SPI)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var actualEarnedValueTask = CalculateActualEarnedValue(organizationName, projectId, teamId, start, end);
             var plannedValueTask = CalculatePlannedValue(organizationName, projectId, teamId, start, end);
 
             await Task.WhenAll(actualEarnedValueTask, plannedValueTask);
 
             var schedulePerformanceIndex = Convert.ToDouble(actualEarnedValueTask.Result) / Convert.ToDouble(plannedValueTask.Result);
+
+            log.Record($"AEV = {actualEarnedValueTask.Result}");
+            log.Record($"PV = {plannedValueTask.Result}");
+            log.Record($"SPI = {schedulePerformanceIndex}");
+
+            log.Finish();
 
             return schedulePerformanceIndex;
         }
@@ -133,8 +183,16 @@ namespace SkripsiAppBackend.Calculations
             return await CalculateCostPerformanceIndex(organizationName, projectId, teamId, DateTime.MinValue, now);
         }
         
-        public async Task<double> CalculateCostPerformanceIndex(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        public async Task<double> CalculateCostPerformanceIndex(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end)
         {
+            var log = logging.CreateCalculationLog("Cost Performance Index (CPI)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var reportedEarnedValueTask = CalculateReportedEarnedValue(organizationName, projectId, teamId, start, end);
             var actualCostTask = CalculateActualCost(organizationName, projectId, teamId, start, end);
 
@@ -147,6 +205,12 @@ namespace SkripsiAppBackend.Calculations
 
             var costPerformanceIndex = Convert.ToDouble(reportedEarnedValueTask.Result) / Convert.ToDouble(actualCostTask.Result);
 
+            log.Record($"REV = {reportedEarnedValueTask.Result}");
+            log.Record($"AC = {actualCostTask.Result}");
+            log.Record($"CPI = {costPerformanceIndex}");
+
+            log.Finish();
+
             return costPerformanceIndex;
         }
 
@@ -157,12 +221,24 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculateActualCost(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
         {
+            var log = logging.CreateCalculationLog("Actual Cost (AC)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var reports = await database.Reports.ReadTeamReports(teamKey);
             var actualCost = reports
                 .Where(report => report.StartDate >= start && report.EndDate <= end)
-                .Aggregate(0L, (total, report) => total + report.Expenditure);
+                .Aggregate(0L, (total, report) =>
+                {
+                    log.Record($"(Report {report.Id}) Report duration={report.StartDate}-{report.EndDate}");
+
+                    return total + report.Expenditure;
+                });
+
+            log.Record($"AC = {actualCost}");
+
+            log.Finish();
 
             return actualCost;
         }
@@ -175,6 +251,9 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculatePlannedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
         {
+            var log = logging.CreateCalculationLog("Planned Value (PV)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var team = database.TrackedTeams.ReadByKey(teamKey);
@@ -192,9 +271,21 @@ namespace SkripsiAppBackend.Calculations
             var deadline = (DateTime)team.Result.Deadline;
 
             var projectDuration = startDate.Result.WorkingDaysUntil(deadline, workingDays.Result);
-            var actualDuration = start.Clamp(startDate.Result, deadline).WorkingDaysUntil(end, workingDays.Result);
+            var actualDuration = start.Clamp(startDate.Result, deadline).WorkingDaysUntil(end.Clamp(startDate.Result, deadline), workingDays.Result);
+
+            log.Record($"Accounted start = {start.Clamp(startDate.Result, deadline)}");
+            log.Record($"Accounted end = {end.Clamp(startDate.Result, deadline)}");
+            log.Record($"Project start date = {startDate.Result}");
+            log.Record($"Project deadline = {deadline}");
 
             var plannedValue = (Convert.ToInt64(actualDuration) * budgetAtCompletion.Result) / Convert.ToInt64(projectDuration);
+
+            log.Record($"Actual duration = {actualDuration}");
+            log.Record($"Project duration = {projectDuration}");
+            log.Record($"BAC = {budgetAtCompletion.Result}");
+            log.Record($"PV = {plannedValue}");
+
+            log.Finish();
 
             return plannedValue;
         }
@@ -204,8 +295,16 @@ namespace SkripsiAppBackend.Calculations
             return await CalculateActualEarnedValue(organizationName, projectId, teamId, DateTime.MinValue, now);
         }
 
-        public async Task<long> CalculateActualEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        public async Task<long> CalculateActualEarnedValue(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end)
         {
+            var log = logging.CreateCalculationLog("Actual Earned Value (AEV)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var team = database.TrackedTeams.ReadByKey(teamKey);
@@ -219,12 +318,19 @@ namespace SkripsiAppBackend.Calculations
                     ((DateTime)sprint.Sprint.StartDate).IsBetween(start, end) ||
                     ((DateTime)sprint.Sprint.EndDate).IsBetween(start, end)
                 )
-                .Select(sprint => common.AdjustSprint(
-                    sprint.Sprint,
-                    sprint.WorkItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(),
-                    start,
-                    end
-                ))
+                .Select(sprint =>
+                {
+                    var adjustedSprint = common.AdjustSprint(
+                        sprint.Sprint,
+                        sprint.WorkItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(),
+                        start,
+                        end
+                    );
+
+                    log.Record($"({sprint.Sprint.Name}) Duration={sprint.Sprint.StartDate}-{sprint.Sprint.EndDate}; Work Factor={adjustedSprint.WorkFactor}; Accounted Effort={adjustedSprint.Effort}");
+
+                    return adjustedSprint;
+                })
                 .Aggregate(0d, (totalEffort, sprint) => totalEffort + sprint.Effort);
 
             if (!team.Result.CostPerEffort.HasValue)
@@ -232,9 +338,15 @@ namespace SkripsiAppBackend.Calculations
                 throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_EFFORT_COST);
             }
 
-            var actualEarnedValue = Convert.ToInt64(completedEffort) * (long)team.Result.CostPerEffort;
+            var actualEarnedValue = completedEffort * (double)team.Result.CostPerEffort;
 
-            return actualEarnedValue;
+            log.Record($"Total completed effort = {completedEffort}");
+            log.Record($"CPE = {team.Result.CostPerEffort}");
+            log.Record($"AEV = {actualEarnedValue}");
+
+            log.Finish();
+
+            return (long)actualEarnedValue;
         }
 
         public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime now)
@@ -244,6 +356,9 @@ namespace SkripsiAppBackend.Calculations
 
         public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
         {
+            var log = logging.CreateCalculationLog("Reported Earned Value (REV)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var teamTask = database.TrackedTeams.ReadByKey(teamKey);
@@ -268,7 +383,11 @@ namespace SkripsiAppBackend.Calculations
                     {
                         var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
 
-                        return common.AdjustSprint(sprint, workItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(), report.StartDate, report.EndDate);
+                        var adjustedSprint = common.AdjustSprint(sprint, workItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(), report.StartDate, report.EndDate);
+
+                        log.Record($"(Report {report.Id} - {sprint.Name}) Report duration={report.StartDate}-{report.EndDate}; Sprint duration={sprint.StartDate}-{sprint.EndDate}; Work factor={adjustedSprint.WorkFactor}; Effort={adjustedSprint.Effort}");
+
+                        return adjustedSprint;
                     });
 
                     var adjustedSprints = (await Task.WhenAll(adjustedSprintTasks)).ToList();
@@ -282,18 +401,28 @@ namespace SkripsiAppBackend.Calculations
 
             var totalEffort = reportEfforts.Aggregate(0d, (total, effort) => total + effort);
 
+            log.Record($"Total effort = {totalEffort}");
+
             if (!teamTask.Result.CostPerEffort.HasValue)
             {
                 throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_EFFORT_COST);
             }
 
-            var reportedEarnedValue = Convert.ToInt64(totalEffort) * (int)(teamTask.Result.CostPerEffort);
+            var reportedEarnedValue = totalEffort * (double)(teamTask.Result.CostPerEffort);
 
-            return reportedEarnedValue;
+            log.Record($"CPE = {teamTask.Result.CostPerEffort}");
+            log.Record($"REV = {reportedEarnedValue}");
+
+            log.Finish();
+
+            return (long)reportedEarnedValue;
         }
 
         public async Task<long> CalculateBudgetAtCompletion(string organizationName, string projectId, string teamId)
         {
+            var log = logging.CreateCalculationLog("Budget at Completion (BAC)");
+            log.Argument(new Args(organizationName, projectId, teamId));
+
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
 
             var team = database.TrackedTeams.ReadByKey(teamKey);
@@ -302,6 +431,12 @@ namespace SkripsiAppBackend.Calculations
             await Task.WhenAll(team, totalEffort);
 
             var budgetAtCompletion = team.Result.CostPerEffort * totalEffort.Result;
+
+            log.Record($"CPE = {team.Result.CostPerEffort}");
+            log.Record($"Total effort = {totalEffort.Result}");
+            log.Record($"BAC = {budgetAtCompletion}");
+
+            log.Finish();
 
             return Convert.ToInt64(budgetAtCompletion);
         }

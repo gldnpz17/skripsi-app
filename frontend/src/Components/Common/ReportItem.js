@@ -9,8 +9,11 @@ const ReportItemContainer = ({ children, onClick, href }) => (
   </a>
 )
 
-const ReportStatus = ({ status }) => (
-  <span className={`${Format.statusColor(status, 'bg-')} text-black px-2 rounded text-sm`}>
+const ReportStatus = ({ status, tooltip }) => (
+  <span className={`${Format.statusColor(status, 'bg-')} text-black px-2 rounded text-sm relative group`}>
+    <div className='absolute bottom-8 bg-dark-2 px-2 py-1 text-white rounded border border-gray-700 left-1/2 -translate-x-1/2 shadow-md invisible group-hover:visible'>
+      {tooltip}
+    </div>
     {Format.status(status)}
   </span>
 )
@@ -33,9 +36,15 @@ const ReportItem = ({
     <span className='mr-2'>{Format.month(startDate)}</span>
     <span className='flex-grow'></span>
     <Speedometer className='h-4 mr-2' />
-    <ReportStatus status={Format.performanceIndex(schedulePerformanceIndex).status} />
+    <ReportStatus
+      status={Format.performanceIndex(schedulePerformanceIndex).status}
+      tooltip={<div className='whitespace-nowrap'><b>SPI :</b> {Format.number(schedulePerformanceIndex, 3)}</div>}
+    />
     <Cash className='h-4 mr-2 ml-4' />
-    <ReportStatus status={errors.includes('ZERO_EXPENDITURE') ? 'Healthy' : Format.performanceIndex(costPerformanceIndex).status} />
+    <ReportStatus
+      status={errors.includes('ZERO_EXPENDITURE') ? 'Healthy' : Format.performanceIndex(costPerformanceIndex).status}
+      tooltip={<div className='whitespace-nowrap'><b>CPI :</b> {Format.number(costPerformanceIndex, 3)}</div>}
+    />
   </ReportItemContainer>
 )
 

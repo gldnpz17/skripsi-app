@@ -151,7 +151,7 @@ const GeneralSection = ({ team }) => {
             organizationName: team.organization.name,
             projectId: team.project.id,
             teamId: team.id,
-            deadline: DateTime.fromISO(target.value).endOf('day').toISO() 
+            deadline: DateTime.fromISO(target.value).startOf('day').toISO() 
           }))}
         />
         <FormInput

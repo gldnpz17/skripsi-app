@@ -21,10 +21,12 @@ const mapTeamDetails = ({
 const mapTeamTimeline = ({
   startDate,
   deadline,
+  now,
   estimatedCompletionDate
 }) => ({
   startDate: DateTime.fromISO(startDate),
   deadline: DateTime.fromISO(deadline),
+  now: DateTime.fromISO(now),
   estimatedCompletionDate: DateTime.fromISO(estimatedCompletionDate)
 })
 

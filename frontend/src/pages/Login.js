@@ -28,7 +28,7 @@ const LoginPage = () => {
               <ul>
                 <li>- View EVM-based project health metrics</li>
                 <li>- Forecast future costs</li>
-                <li>- Create monthly reports to keep track of health</li>
+                <li>- Monthly reports to track health over time</li>
                 <li>- Customizable estimation formulas</li>
                 <li>
                   - Open source! View the&nbsp;

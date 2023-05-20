@@ -10,6 +10,8 @@ using SkripsiAppBackend.Common.ModelBinder;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using SkripsiAppBackend.Services.DateTimeService;
+using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.Services.ObjectCachingService;
 using SkripsiAppBackend.UseCases;
 
@@ -41,8 +43,17 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(applicationConfiguration);
 builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddScoped<AccessTokenService>();
+builder.Services.AddSingleton<IDateTimeService, MockDateTimeService>();
 
 builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));
+
+builder.Services.AddSingleton((service) =>
+{
+    return new LoggingService
+    {
+        Strategy = new ConsoleLoggingStrategy()
+    };
+});
 
 builder.Services.AddScoped<ReportCalculations>();
 builder.Services.AddScoped<CommonCalculations>();

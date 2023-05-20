@@ -96,7 +96,8 @@ namespace SkripsiAppBackend.Calculations
                 .Select(async (sprint) =>
                 {
                     var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
-                    var effort = common.CalculateTotalEffort(workItems);
+                    var completedWorkItems = workItems.Where(workItem => workItem.State == IAzureDevopsService.WorkItemState.Done).ToList();
+                    var effort = common.CalculateTotalEffort(completedWorkItems);
 
                     return new BurndownChartItem()
                     {
@@ -177,8 +178,9 @@ namespace SkripsiAppBackend.Calculations
                 .Select(async (sprint, index) =>
                 {
                     var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
+                    var completedWorkItems = workItems.Where(workItem => workItem.State == IAzureDevopsService.WorkItemState.Done).ToList();
 
-                    var effort = common.CalculateTotalEffort(workItems);
+                    var effort = common.CalculateTotalEffort(completedWorkItems);
                     var duration = ((DateTime)sprint.StartDate).WorkingDaysUntil((DateTime)sprint.EndDate, workDays.Result);
 
                     var velocity = effort / duration;
