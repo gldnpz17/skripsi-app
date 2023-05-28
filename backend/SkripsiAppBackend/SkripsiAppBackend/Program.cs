@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using SkripsiAppBackend.Calculations;
 using SkripsiAppBackend.Common;
 using SkripsiAppBackend.Common.Authentication;
@@ -14,8 +15,14 @@ using SkripsiAppBackend.Services.DateTimeService;
 using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.Services.ObjectCachingService;
 using SkripsiAppBackend.UseCases;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions()
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default
+});
 
 var applicationConfiguration = new Configuration(
     jwtSigningSecret: Environment.GetEnvironmentVariable("JWT_SIGNING_SECRET"),
@@ -28,7 +35,8 @@ var applicationConfiguration = new Configuration(
     environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
     connectionString: Environment.GetEnvironmentVariable("CONNECTION_STRING"),
     accessTokenLifetime: TimeSpan.FromSeconds(3),
-    timelinessMarginFactor: 0.5
+    timelinessMarginFactor: 0.5,
+    enableTls: Environment.GetEnvironmentVariable("TLS_ENABLED")
 );
 
 // Add services to the container.
@@ -87,6 +95,26 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IAuthorizationHandler, AllowTeamMemberHandler>();
 builder.Services.AddSingleton<IAuthorizationHandler, AllowAuthenticationHandler>();
 
+builder.Host.UseWindowsService();
+
+if (
+    applicationConfiguration.EnableTls ||
+    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production)
+{
+    var certPath = AppContext.BaseDirectory + "./certificate.pem";
+    var keyPath = AppContext.BaseDirectory + "./private_key.pem";
+    var cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.Listen(IPAddress.Any, 80); // Should redirect to port 443.
+        options.Listen(IPAddress.Any, 443, listenOptions =>
+        {
+            listenOptions.UseHttps(cert);
+        });
+    });
+}
+
 var app = builder.Build();
 
 app.UseRouting();
@@ -98,9 +126,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production)
+if (
+    applicationConfiguration.EnableTls ||
+    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production)
 {
     app.UseHttpsRedirection();
+    app.UseHsts();
 }
 
 app.UseErrorHandling();

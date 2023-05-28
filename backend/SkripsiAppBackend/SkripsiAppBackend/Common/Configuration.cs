@@ -19,7 +19,8 @@
             string environment,
             string connectionString,
             TimeSpan accessTokenLifetime,
-            double timelinessMarginFactor
+            double timelinessMarginFactor,
+            string enableTls
         )
         {
             JwtSigningSecret = jwtSigningSecret;
@@ -41,6 +42,8 @@
             AccessTokenLifetime = accessTokenLifetime;
 
             TimelinessMarginFactor = timelinessMarginFactor;
+
+            EnableTls = enableTls != null ? Boolean.Parse(enableTls) : false;
         }
         public string JwtSigningSecret { get; private set; }
         public string ClientAppId { get; private set; }
@@ -53,5 +56,6 @@
         public ExecutionEnvironment Environment { get; private set; }
         public TimeSpan AccessTokenLifetime { get; private set; }
         public double TimelinessMarginFactor { get; private set; }
+        public bool EnableTls { get; private set; }
     }
 }

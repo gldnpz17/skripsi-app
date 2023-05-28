@@ -126,34 +126,44 @@ namespace SkripsiAppBackend.Calculations
                 TeamId = teamId,
             });
 
-            var currentMonthBeginning = new DateTime(startDate.Year, startDate.Month, 1);
+            var availableReports = await ListAvailableReports(startDate, endDate);
 
-            var availableReports = new List<AvailableReport>();
+            var nonCollidingAvaibleReports = availableReports.Where(report => !HasCollision(report));
 
-            while (currentMonthBeginning < endDate)
+            return nonCollidingAvaibleReports.OrderByDescending(report => report.StartDate).ToList();
+
+            bool HasCollision(AvailableReport availableReport)
             {
-                var currentMonthEnd = currentMonthBeginning.AddMonths(1).AddSeconds(-1);
-
                 var collidingReport = existingReports
                     .FirstOrDefault(report =>
-                        (report.StartDate >= currentMonthBeginning && report.EndDate <= currentMonthEnd) ||
-                        (report.StartDate <= currentMonthBeginning && report.EndDate >= currentMonthEnd) ||
-                        (report.StartDate <= currentMonthEnd && report.EndDate >= currentMonthBeginning)
+                        (report.StartDate >= availableReport.StartDate && report.EndDate <= availableReport.EndDate) ||
+                        (report.StartDate <= availableReport.StartDate && report.EndDate >= availableReport.EndDate) ||
+                        (report.StartDate <= availableReport.EndDate && report.EndDate >= availableReport.StartDate)
                     );
 
-                if (collidingReport == null)
-                {
-                    availableReports.Add(new AvailableReport()
-                    {
-                        StartDate = currentMonthBeginning,
-                        EndDate = currentMonthEnd
-                    });
-                }
+                return collidingReport != null;
+            }
+        }
 
-                currentMonthBeginning = currentMonthBeginning.AddMonths(1);
+        public async Task<List<AvailableReport>> ListAvailableReports(DateTime start, DateTime end)
+        {
+            var currentStart = new DateTime(start.Year, start.Month, 1);
+
+            var reports = new List<AvailableReport>();
+            while (currentStart < end)
+            {
+                var currentEnd = currentStart.AddMonths(1).AddSeconds(-1);
+
+                reports.Add(new AvailableReport()
+                {
+                    StartDate = currentStart,
+                    EndDate = currentEnd
+                });
+
+                currentStart = currentStart.AddMonths(1);
             }
 
-            return availableReports.OrderByDescending(report => report.StartDate).ToList();
+            return reports;
         }
     }
 }

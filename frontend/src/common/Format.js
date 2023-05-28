@@ -16,6 +16,9 @@ const Format = {
 
     return ({ status })
   },
+  performanceIndexPercent: (value) => {
+    return (1 / value) - 1
+  },
   number: (amount, precision) => {
     return Math.round(amount * Math.pow(10, precision)) / Math.pow(10, precision)
   },

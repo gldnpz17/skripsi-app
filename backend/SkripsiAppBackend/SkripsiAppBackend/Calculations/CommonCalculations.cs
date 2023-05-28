@@ -1,6 +1,7 @@
 ﻿using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.Calculations
@@ -74,8 +75,18 @@ namespace SkripsiAppBackend.Calculations
 
         public double CalculateTotalEffort(List<WorkItem> workItems)
         {
+            return CalculateTotalEffort(workItems, (workItem) => workItem.Effort);
+        }
+
+        public double CalculateTotalEffort(List<TimespanAdjustedSprint> sprints)
+        {
+            return CalculateTotalEffort(sprints, (sprint) => sprint.Effort);
+        }
+
+        public double CalculateTotalEffort<T>(List<T> items, Func<T, double> getEffort)
+        {
             double totalEffort = 0;
-            workItems.ForEach(workItem => totalEffort += workItem.Effort);
+            items.ForEach(item => totalEffort += getEffort(item));
             return totalEffort;
         }
 
@@ -94,6 +105,15 @@ namespace SkripsiAppBackend.Calculations
             }
 
             return (DateTime)earliestSprint.StartDate;
+        }
+
+        public async Task<DateTime> GetLatestReportDate(string organizationName, string projectId, string teamId)
+        {
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+
+            var reports = await database.Reports.ReadTeamReports(teamKey);
+
+            return reports.Max(report => report.EndDate);
         }
 
         public async Task<List<TimespanAdjustedSprint>> ReadAdjustedSprints(
@@ -150,6 +170,19 @@ namespace SkripsiAppBackend.Calculations
                 StartDate = accountedStartDate,
                 EndDate = accountedEndDate
             };
+        }
+
+        public DateTime MinDateTime(params DateTime[] dateTimes)
+        {
+            var min = dateTimes[0];
+            foreach (var dateTime in dateTimes)
+            {
+                if (dateTime < min)
+                {
+                    min = dateTime;
+                }
+            }
+            return min;
         }
     }
 }

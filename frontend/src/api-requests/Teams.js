@@ -38,12 +38,28 @@ const mapCpiChartItem = ({
   month: DateTime.fromISO(month)
 })
 
+const mapWorkCostChartItem = ({
+  month,
+  ...item
+}) => ({
+  ...item,
+  month: DateTime.fromISO(month)
+})
+
 const mapBurndownChartItem = ({
   date,
   ...item
 }) => ({
   ...item,
   date: DateTime.fromISO(date)
+})
+
+const mapMilestoneChartItem = ({
+  month,
+  ...item
+}) => ({
+  ...item,
+  month: DateTime.fromISO(month)
 })
 
 const mapBurndownChart = ({
@@ -74,7 +90,11 @@ const readTeamCpiChart = async ({ organizationName, projectId, teamId }) => (awa
 
 const readTeamBurndownChart = async ({ organizationName, projectId, teamId }) => mapBurndownChart((await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/burndown-chart`)).data)
 
+const readWorkCostChart = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/work-cost-chart`)).data.map(mapWorkCostChartItem)
+
 const readTeamVelocityChart = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/velocity-chart`)).data
+
+const readTeamMilestoneChart = async ({ organizationName, projectId, teamId }) => (await axios.get(`/api/teams/${organizationName}/${projectId}/${teamId}/metrics/milestone-chart`)).data.map(mapMilestoneChartItem)
 
 const trackTeam = async ({ organizationName, projectId, teamId }) => await axios.post(`/api/teams`, { organizationName, projectId, teamId })
 
@@ -93,7 +113,9 @@ export {
   readTeamTimeline,
   readTeamCpiChart,
   readTeamBurndownChart,
+  readWorkCostChart,
   readTeamVelocityChart,
+  readTeamMilestoneChart,
   trackTeam,
   readTeamDetails,
   updateTeam,

@@ -6,6 +6,7 @@ using SkripsiAppBackend.UseCases.Extensions;
 using System.Security.Cryptography.X509Certificates;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
+using static SkripsiAppBackend.Services.LoggingService.LoggingService;
 using static SkripsiAppBackend.Services.LoggingService.LoggingService.CalculationLog;
 
 namespace SkripsiAppBackend.Calculations
@@ -95,9 +96,8 @@ namespace SkripsiAppBackend.Calculations
 
             var eac = eacFormula switch
             {
-                EstimateAtCompletionFormulas.Typical => await CalculateBasic(),
+                EstimateAtCompletionFormulas.Typical => await CalculateTypical(),
                 EstimateAtCompletionFormulas.Atypical => await CalculateAtypical(),
-                EstimateAtCompletionFormulas.Typical2 => await CalculateTypical2(), // Just here for backwards compatibility. TODO: remove.
                 _ => throw new Exception("Unknown formula")
             };
 
@@ -106,7 +106,7 @@ namespace SkripsiAppBackend.Calculations
 
             return eac;
 
-            async Task<long> CalculateBasic()
+            async Task<long> CalculateTypical()
             {
                 var costPerformanceIndex = CalculateCostPerformanceIndex(organizationName, projectId, teamId, now);
                 var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
@@ -116,7 +116,7 @@ namespace SkripsiAppBackend.Calculations
                 log.Record($"CPI = {costPerformanceIndex.Result}");
                 log.Record($"BAC = {budgetAtCompletion.Result}");
 
-                return Convert.ToInt64(Convert.ToDouble(budgetAtCompletion.Result) / costPerformanceIndex.Result);
+                return CostEstimationFormulas.Typical(costPerformanceIndex.Result, budgetAtCompletion.Result);
             }
 
             async Task<long> CalculateAtypical()
@@ -131,19 +131,20 @@ namespace SkripsiAppBackend.Calculations
                 log.Record($"BAC = {budgetAtCompletion.Result}");
                 log.Record($"EV = {earnedValue.Result}");
 
-                return actualCost.Result + budgetAtCompletion.Result - earnedValue.Result;
+                return CostEstimationFormulas.Atypical(actualCost.Result, budgetAtCompletion.Result, earnedValue.Result);
+            }
+        }
+
+        private static class CostEstimationFormulas
+        {
+            public static long Typical(double costPerformanceIndex, long budget)
+            {
+                return Convert.ToInt64(Convert.ToDouble(budget) / costPerformanceIndex);
             }
 
-            async Task<long> CalculateTypical2()
+            public static long Atypical(long actualCost, long budget, long earnedValue)
             {
-                var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
-                var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
-                var earnedValue = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
-                var costPerformanceIndex = CalculateCostPerformanceIndex(organizationName, projectId, teamId, now);
-
-                await Task.WhenAll(actualCost, budgetAtCompletion, earnedValue, costPerformanceIndex);
-
-                return actualCost.Result + Convert.ToInt64(Convert.ToDouble(budgetAtCompletion.Result - earnedValue.Result) / costPerformanceIndex.Result);
+                return actualCost + budget - earnedValue;
             }
         }
 
@@ -176,6 +177,47 @@ namespace SkripsiAppBackend.Calculations
             log.Finish();
 
             return schedulePerformanceIndex;
+        }
+
+        public async Task<DateTime> CalculateEstimatedCompletionDate(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now)
+        {
+            var log = logging.CreateCalculationLog("Estimated Completion Date");
+            log.Argument(new Args(organizationName, projectId, teamId, now));
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+
+            var schedulePerformanceIndex = CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, now);
+            var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
+            var team = database.TrackedTeams.ReadByKey(teamKey);
+            var workDays = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
+
+            await Task.WhenAll(schedulePerformanceIndex, startDate, team, workDays);
+
+            if (!team.Result.Deadline.HasValue)
+            {
+                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
+            }
+
+            log.Record($"Start date = {startDate.Result}");
+            log.Record($"Deadline = {team.Result.Deadline}");
+
+            var plannedDuration = startDate.Result.WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
+            log.Record($"Planned duration = {plannedDuration}");
+            log.Record($"Work days = {workDays.Result}");
+            log.Record($"SPI = {schedulePerformanceIndex.Result}");
+
+            var estimatedDuration = plannedDuration / schedulePerformanceIndex.Result;
+            log.Record($"Estimated duration = {estimatedDuration}");
+
+            var estimatedCompletionDate = startDate.Result.AddWorkingDays(estimatedDuration, workDays.Result);
+            log.Record($"Estimated completion date = {estimatedCompletionDate}");
+
+            log.Finish();
+
+            return estimatedCompletionDate;
         }
 
         public async Task<double> CalculateCostPerformanceIndex(string organizationName, string projectId, string teamId, DateTime now)
@@ -228,7 +270,7 @@ namespace SkripsiAppBackend.Calculations
 
             var reports = await database.Reports.ReadTeamReports(teamKey);
             var actualCost = reports
-                .Where(report => report.StartDate >= start && report.EndDate <= end)
+                .Where(report => report.StartDate.IsBetween(start, end) || report.EndDate.IsBetween(start, end))
                 .Aggregate(0L, (total, report) =>
                 {
                     log.Record($"(Report {report.Id}) Report duration={report.StartDate}-{report.EndDate}");
@@ -368,7 +410,7 @@ namespace SkripsiAppBackend.Calculations
             await Task.WhenAll(teamTask, reportsTask, sprintsTask);
 
             var reportEffortTasks = reportsTask.Result
-                .Where(report => report.StartDate >= start && report.EndDate <= end)
+                .Where(report => report.StartDate.IsBetween(start, end) || report.EndDate.IsBetween(start, end))
                 .Select(async (report) =>
                 {
                     var reportSprints = sprintsTask.Result
@@ -439,6 +481,74 @@ namespace SkripsiAppBackend.Calculations
             log.Finish();
 
             return Convert.ToInt64(budgetAtCompletion);
+        }
+
+        public async Task<long> CalculateEstimatedEarnedValue(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now,
+            DateTime estimationDate)
+        {
+            var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
+            var estimatedCompletionDate = CalculateEstimatedCompletionDate(organizationName, projectId, teamId, common.MinDateTime(now, estimationDate));
+            var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+            var workDays = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
+
+            await Task.WhenAll(startDate, estimatedCompletionDate, budgetAtCompletion, workDays);
+
+            var totalDuration = startDate.Result.WorkingDaysUntil(estimatedCompletionDate.Result, workDays.Result);
+            var estimationDuration = startDate.Result.WorkingDaysUntil(estimationDate.Clamp(startDate.Result, estimatedCompletionDate.Result), workDays.Result);
+
+            var earnedValue = Convert.ToInt64((estimationDuration / totalDuration) * budgetAtCompletion.Result);
+
+            return earnedValue;
+        }
+
+        public async Task<long> CalculateEstimatedActualCost(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now,
+            DateTime estimationDate,
+            EstimateAtCompletionFormulas eacFormula)
+        {
+            var latestReportDate = await common.GetLatestReportDate(organizationName, projectId, teamId);
+
+            if (estimationDate <= latestReportDate)
+            {
+                return await CalculateActualCost(organizationName, projectId, teamId, estimationDate);
+            }
+
+            var eac = eacFormula switch
+            {
+                EstimateAtCompletionFormulas.Typical => await CalculateTypical(),
+                EstimateAtCompletionFormulas.Atypical => await CalculateAtypical(),
+                _ => throw new Exception("Unknown formula")
+            };
+
+            return eac;
+
+            async Task<long> CalculateTypical()
+            {
+                var earnedValue = CalculateEstimatedEarnedValue(organizationName, projectId, teamId, now, estimationDate);
+                var costPerformanceIndex = CalculateCostPerformanceIndex(organizationName, projectId, teamId, common.MinDateTime(now, estimationDate));
+
+                await Task.WhenAll(earnedValue, costPerformanceIndex);
+
+                return CostEstimationFormulas.Typical(costPerformanceIndex.Result, earnedValue.Result);
+            }
+
+            async Task<long> CalculateAtypical()
+            {
+                var actualCost = CalculateActualCost(organizationName, projectId, teamId, now);
+                var estimatedEarnedValue = CalculateEstimatedEarnedValue(organizationName, projectId, teamId, now, estimationDate);
+                var earnedValue = CalculateReportedEarnedValue(organizationName, projectId, teamId, now);
+
+                await Task.WhenAll(actualCost, estimatedEarnedValue, earnedValue);
+
+                return CostEstimationFormulas.Atypical(actualCost.Result, estimatedEarnedValue.Result, earnedValue.Result);
+            }
         }
     }
 }

@@ -39,46 +39,5 @@ namespace SkripsiAppBackend.Calculations
 
             return budgetAtCompletion.Result - actualCost.Result;
         }
-
-        public async Task<DateTime> CalculateEstimatedCompletionDate(
-            string organizationName,
-            string projectId,
-            string teamId,
-            DateTime now)
-        {
-            var log = logging.CreateCalculationLog("Estimated Completion Date");
-            log.Argument(new Args(organizationName, projectId, teamId, now));
-            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
-
-            var schedulePerformanceIndex = evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, now);
-            var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
-            var team = database.TrackedTeams.ReadByKey(teamKey);
-            var workDays = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
-
-            await Task.WhenAll(schedulePerformanceIndex, startDate, team, workDays);
-
-            if (!team.Result.Deadline.HasValue)
-            {
-                throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_DEADLINE);
-            }
-
-            log.Record($"Start date = {startDate.Result}");
-            log.Record($"Deadline = {team.Result.Deadline}");
-
-            var plannedDuration = startDate.Result.WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
-            log.Record($"Planned duration = {plannedDuration}");
-            log.Record($"Work days = {workDays.Result}");
-            log.Record($"SPI = {schedulePerformanceIndex.Result}");
-
-            var estimatedDuration = plannedDuration / schedulePerformanceIndex.Result;
-            log.Record($"Estimated duration = {estimatedDuration}");
-
-            var estimatedCompletionDate = startDate.Result.AddWorkingDays(estimatedDuration, workDays.Result);
-            log.Record($"Estimated completion date = {estimatedCompletionDate}");
-
-            log.Finish();
-
-            return estimatedCompletionDate;
-        }
     }
 }

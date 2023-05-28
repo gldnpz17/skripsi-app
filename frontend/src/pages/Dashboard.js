@@ -6,7 +6,7 @@ import { AzureDevops, CalendarCheck, Cash, CashStack, CheckeredFlag, Configurati
 import { CategoryScale, BarController, BarElement, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip, TimeScale } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
-import { readTeamBurndownChart, readTeamCpi, readTeamCpiChart, readTeamFinances, readTeamSpi, readTeamTimeline, readTeamVelocityChart, readTrackedTeams } from "../api-requests/Teams"
+import { readTeamBurndownChart, readTeamCpi, readTeamCpiChart, readTeamFinances, readTeamMilestoneChart, readTeamSpi, readTeamTimeline, readTeamVelocityChart, readTrackedTeams, readWorkCostChart } from "../api-requests/Teams"
 import { Button } from "../Components/Common/Button"
 import { IconButton } from '../Components/Common/IconButton'
 import { BlankReportItem, ReportItem } from "../Components/Common/ReportItem"
@@ -171,6 +171,15 @@ const TeamDetailsSkeleton = () => (
   </div>
 )
 
+const TooltipWrapper = ({ children, tooltip }) => (
+  <div className='relative group z-50'>
+    <div className='absolute bottom-full left-1/2 -translate-x-1/2 -translate-y-2 shadow-lg bg-dark-2 px-2 py-1 border border-gray-700 group-hover:visible invisible whitespace-nowrap rounded'>
+      {tooltip}
+    </div>
+    {children}
+  </div>
+)
+
 const IndexMeter = ({
   label,
   icon,
@@ -186,7 +195,8 @@ const IndexMeter = ({
     description,
     value,
     hint
-  }
+  },
+  warning
 }) => {
   const Icon = icon
   const SeverityColor = {
@@ -194,7 +204,7 @@ const IndexMeter = ({
     1: 'text-yellow-400',
     0: 'text-green-400'
   }
-  const position = useMemo(() => Math.round((Math.max(0, Math.min(2, value)) / 2) * 100), [value])
+  const position = useMemo(() => Math.round((Math.max(0, Math.min(2, Format.performanceIndexPercent(value) + 1)) / 2) * 100), [value])
 
   return (
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
@@ -202,7 +212,16 @@ const IndexMeter = ({
         <Icon className='h-4 inline' />&nbsp;
         {label}
       </div>
-      <div className={`text-xl font-bold ${SeverityColor[severity]} mb-4`}>{status}</div>
+      <div className='flex items-center mb-4 '>
+        <div className={`text-xl font-bold ${SeverityColor[severity]} flex-grow`}>
+          {status}
+        </div>
+        {warning && (
+          <TooltipWrapper tooltip={warning}>
+            <Warning className='h-6 text-yellow-200' />
+          </TooltipWrapper>
+        )}
+      </div>
       <div className='mb-4'>
         {/* Meter */}
         <div className='relative mb-2'>
@@ -460,6 +479,71 @@ const CpiChartSection = ({ data }) => {
   )
 }
 
+const WorkCostChartSection = ({ data }) => {
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        ticks: {
+          color: '#9ca3af'
+        }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: '#9ca3af'
+        }
+      }
+    },
+    plugins: {
+      legend: null,
+    }
+  }
+
+  const { dataset, requiredAverage } = useMemo(() => {
+    const dataset = {
+      label: 'Work Cost',
+      data: data.map(datum => ({ y: datum.workCost, x: Format.month(datum.month) })),
+      backgroundColor: 'rgb(111, 134, 191)',
+      order: 1
+    }
+
+    const requiredAverage = {
+      label: 'Maximum Average Work Cost',
+      type: 'line',
+      data: data.map(datum => ({ y: datum.maximumAverageWorkCost, x: Format.month(datum.month) })),
+      borderColor: 'rgb(248, 113, 113)',
+      borderDash: [5, 5],
+      order: 0
+    }
+
+    return { dataset, requiredAverage }
+  }, [data])
+
+  return (
+    <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
+      <div className='mb-2'>Work Cost Chart</div>
+      <div className='mb-4 text-sm text-gray-400'>The amount of money spent per work done (lower is better)</div>
+      <div className='mb-4'>
+        <Bar
+          style={{ width: '100%', height: '18rem' }}
+          data={{
+            datasets: [dataset, requiredAverage]
+          }}
+          {...{ options }}
+        />
+      </div>
+      <ChartLegend
+        items={[
+          { color: '#b388eb', label: 'Cost per unit of work (rupiah/effort)' },
+          { color: '#f87171', label: 'Maximum average cost of work to complete the project on budget (rupiah/effort)' }
+        ]}
+      />
+    </div>
+  )
+}
+
 const BurndownChartSection = ({
   data: {
     startDate,
@@ -532,8 +616,83 @@ const BurndownChartSection = ({
       </div>
       <ChartLegend
         items={[
-          { color: '#b388eb', label: 'Remaining effort' },
-          { color: '#f87171', label: 'Ideal effort' }
+          { color: '#b388eb', label: 'Actual remaining effort' },
+          { color: '#f87171', label: 'Ideal remaining effort' }
+        ]}
+      />
+    </div>
+  )
+}
+
+const MilestoneChartSection = ({ data }) => {
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        ticks: {
+          color: '#9ca3af'
+        }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: '#9ca3af'
+        }
+      }
+    },
+    plugins: {
+      legend: null,
+    }
+  }
+
+  const { remainingWork, remainingBudget, idealRemaining } = useMemo(() => {
+    const remainingWork = {
+      label: 'Remaining Work (%)',
+      type: 'line',
+      data: data.map(datum => ({ y: Format.number(datum.remainingWorkPercentage, 3), x: Format.month(datum.month) })),
+      borderColor: 'rgb(252, 169, 3)',
+      order: 1
+    }
+
+    const remainingBudget = {
+      label: 'Remaining Budget (%)',
+      type: 'line',
+      data: data.map(datum => ({ y: Format.number(datum.remainingBudgetPercentage, 3), x: Format.month(datum.month) })),
+      borderColor: 'rgb(2, 181, 76)',
+      order: 1
+    }
+
+    const idealRemaining = {
+      label: 'Ideal Remaining Work (%)',
+      type: 'line',
+      data: data.map(datum => ({ y: Format.number(datum.idealRemainingPercentage, 3), x: Format.month(datum.month) })),
+      borderColor: 'rgb(255, 233, 92)',
+      borderDash: [5, 5],
+      order: 0
+    }
+
+    return { remainingWork, remainingBudget, idealRemaining }
+  }, [data])
+
+  return (
+    <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
+      <div className='mb-2'>Remaining Work and Budget</div>
+      <div className='mb-4 text-sm text-gray-400'>Ideal order : remaining budget {`<=`} remaining work & ideal remaining work {`>=`} remaining work</div>
+      <div className='mb-4'>
+        <Bar
+          style={{ width: '100%', height: '18rem' }}
+          data={{
+            datasets: [remainingWork, remainingBudget, idealRemaining]
+          }}
+          {...{ options }}
+        />
+      </div>
+      <ChartLegend
+        items={[
+          { color: '#02b54c', label: 'Remaining budget (%)' },
+          { color: '#ffe95c', label: 'Ideal remaining work (%)' },
+          { color: '#fca903', label: 'Remaining work (%)' },
         ]}
       />
     </div>
@@ -584,7 +743,8 @@ const VelocityChartSection = ({ data }) => {
 
   return (
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
-      <div className='mb-4'>Velocity Chart</div>
+      <div className='mb-2'>Velocity Chart</div>
+      <div className='mb-4 text-sm text-gray-400'>The amount of work done per day (higher is better)</div>
       <div className='mb-4'>
         <Bar
           style={{ width: '100%', height: '18rem' }}
@@ -617,20 +777,20 @@ const PunctualitySection = ({ spi: { schedulePerformanceIndex } }) => (
       ])
     }
     meter={{
-      minLabel: '100% late',
+      minLabel: '100% early',
       midLabel: 'On time',
-      maxLabel: '100% early'
+      maxLabel: '100% late'
     }}
     index={{
       name: 'Schedule Performance Index (SPI)',
       description: 'How punctual we are',
       value: Format.number(schedulePerformanceIndex, 2),
-      hint: schedulePerformanceIndex >= 1 ? `${Math.round((schedulePerformanceIndex - 1) * 100)}% early` : `${Math.round((1 - schedulePerformanceIndex) * 100)}% late`
+      hint: schedulePerformanceIndex >= 1 ? `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% early` : `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% late`
     }}
   />
 )
 
-const BudgetSection = ({ cpi: { costPerformanceIndex } }) => (
+const BudgetSection = ({ cpi: { costPerformanceIndex }, selectedTeam }) => (
   <IndexMeter
     label='Budget'
     icon={CashStack}
@@ -643,16 +803,17 @@ const BudgetSection = ({ cpi: { costPerformanceIndex } }) => (
       ])
     }
     meter={{
-      minLabel: '100% over budget',
+      minLabel: '100% under budget',
       midLabel: 'On budget',
-      maxLabel: '100% under budget'
+      maxLabel: '100% over budget'
     }}
     index={{
       name: 'Cost Performance Index (CPI)',
       description: 'How well we\'re doing financially',
       value: Format.number(costPerformanceIndex, 2),
-      hint: costPerformanceIndex >= 1 ? `${Math.round((costPerformanceIndex - 1) * 100)}% under budget` : `${Math.round((1 - costPerformanceIndex) * 100)}% over budget`
+      hint: costPerformanceIndex >= 1 ? `${Math.abs(Math.round(Format.performanceIndexPercent(costPerformanceIndex) * 100))}% under budget` : `${Math.abs(Math.round(Format.performanceIndexPercent(costPerformanceIndex) * 100))}% over budget`
     }}
+    warning={selectedTeam.eacFormula === 'Atypical' && <div className='w-96 whitespace-pre-wrap'>Cost estimation formula is atypical. Cost performance may not be reflected in cost estimates.</div>}
   />
 )
 
@@ -743,6 +904,16 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
   )
 
   const {
+    isLoading: milestoneChartLoading,
+    data: milestoneChart,
+    error: milestoneChartError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'milestone-chart'],
+    async () => readTeamMilestoneChart({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
     isLoading: financesLoading,
     data: finances,
     error: financeError
@@ -759,6 +930,16 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
   } = useQuery(
     ['teams', organizationName, projectId, teamId, 'timeline'],
     async () => readTeamTimeline({ organizationName, projectId, teamId }),
+    { retry: false }
+  )
+
+  const {
+    isLoading: workCostChartLoading,
+    data: workCostChart,
+    error: workCostChartError
+  } = useQuery(
+    ['teams', organizationName, projectId, teamId, 'work-cost-chart'],
+    async () => readWorkCostChart({ organizationName, projectId, teamId }),
     { retry: false }
   )
 
@@ -801,7 +982,9 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
     timelineLoading,
     cpiChartLoading,
     burndownChartLoading,
-    velocityChartLoading
+    velocityChartLoading,
+    workCostChartLoading,
+    milestoneChartLoading
   ].some(loading => loading === true)) {
     return <TeamDetailsSkeleton />
   }
@@ -846,7 +1029,7 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
           />
         )}
         {!cpiError && (
-          <BudgetSection {...{ cpi }} />
+          <BudgetSection {...{ cpi, selectedTeam }} />
         )}
       </div>
       {/* Cost Breakdown */}
@@ -879,17 +1062,30 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
       <div className='col-span-6 pt-2'>
         <ReportsList {...{ selectedTeam, availableReports, reportMetrics }} />
       </div>
-      {/* CPI Chart */}
+      {/* Milestone Chart */}
       <div className='col-span-12'>
-        {cpiChartError && (
+        {milestoneChartError && (
           <ErrorPlaceholder
-            message='Unable to display cost performance chart.'
-            errorCode={cpiChartError.response.data}
+            message='Unable to display remaining work/budget chart.'
+            errorCode={milestoneChartError.response.data}
             team={selectedTeam}
           />
         )}
-        {!cpiChartError && (
-          <CpiChartSection data={cpiChart} />
+        {!milestoneChartError && (
+          <MilestoneChartSection data={milestoneChart} />
+        )}
+      </div>
+      {/* Work Cost Chart */}
+      <div className='col-span-12'>
+        {workCostChartError && (
+          <ErrorPlaceholder
+            message='Unable to display work cost chart.'
+            errorCode={workCostChartError.response.data}
+            team={selectedTeam}
+          />
+        )}
+        {!workCostChartError && (
+          <WorkCostChartSection data={workCostChart} />
         )}
       </div>
       {/* Burndown Chart */}

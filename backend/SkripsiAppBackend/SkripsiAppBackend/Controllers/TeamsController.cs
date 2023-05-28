@@ -17,6 +17,7 @@ using SkripsiAppBackend.UseCases;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using static SkripsiAppBackend.Calculations.CommonCalculations;
 using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
@@ -299,7 +300,7 @@ namespace SkripsiAppBackend.Controllers
 
             var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
             var deadline = (DateTime)team.Deadline;
-            var estimatedEndDate = misc.CalculateEstimatedCompletionDate(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var estimatedEndDate = evm.CalculateEstimatedCompletionDate(organizationName, projectId, teamId, dateTimeService.GetNow());
 
             await Task.WhenAll(startDate, estimatedEndDate);
 
@@ -359,6 +360,48 @@ namespace SkripsiAppBackend.Controllers
             }
 
             var data = await timeSeries.CalculateVelocityChart(organizationName, projectId, teamId);
+
+            return data;
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/work-cost-chart")]
+        public async Task<ActionResult<List<WorkCostChartItem>>> ReadWorkCostChart(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var data = await timeSeries.CalculateWorkCostChart(organizationName, projectId, teamId);
+
+            return data;
+        }
+
+        [HttpGet("{organizationName}/{projectId}/{teamId}/metrics/milestone-chart")]
+        public async Task<ActionResult<List<MilestoneChartItem>>> ReadMilestoneChart(
+            [FromRoute] string organizationName,
+            [FromRoute] string projectId,
+            [FromRoute] string teamId)
+        {
+            var authorization = await authorizationService.AllowTeamMembers(database, User, organizationName, projectId, teamId);
+            if (!authorization.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+            var team = await database.TrackedTeams.ReadByKey(teamKey);
+
+            var data = await timeSeries.CalculateMilestoneChart(
+                organizationName,
+                projectId,
+                teamId,
+                FormulaHelpers.FromString<EstimateAtCompletionFormulas>(team.EacFormula)
+            );
 
             return data;
         }

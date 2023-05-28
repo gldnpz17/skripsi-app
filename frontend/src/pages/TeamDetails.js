@@ -174,7 +174,7 @@ const GeneralSection = ({ team }) => {
               label: 'Typical',
               information: (
                 <div className='border border-gray-700 rounded-md bg-dark-2 p-4 mt-2 mb-4'>
-                  <div className='text-sm'>Use this when cost performance is relatively steady. (refer to the CPI chart in the dashboard)</div>
+                  <div className='text-sm'>Predicts future cost according to current cost performance. Use this when cost performance is relatively steady. (refer to the work cost chart in the dashboard)</div>
                   <MathJax>{`\\[EAC = \\frac{BAC}{CPI}\\]`}</MathJax>
                   <div className='flex'>
                     <div className='text-sm'>
@@ -191,8 +191,8 @@ const GeneralSection = ({ team }) => {
               label: 'Atypical',
               information: (
                 <div className='border border-gray-700 rounded-md bg-dark-2 p-4 mt-2 mb-4'>
-                  <div className='text-sm'>Use this when there are financial issues. (refer to the CPI chart in the dashboard)</div>
-                  <MathJax>{`\\[EAC = BAC + (AC - EV)\\]`}</MathJax>
+                  <div className='text-sm'>Ignores cost performance and predicts future cost based on the budget. Use this when there are significant financial issues. (refer to the work cost chart in the dashboard)</div>
+                  <MathJax>{`\\[EAC = AC + (BAC - EV)\\]`}</MathJax>
                   <div className='flex'>
                     <div className='text-sm'>
                       <div><span className='text-primary-dark font-semibold'>EAC</span> = Estimate at Completion (Estimated cost to complete the project)</div>
