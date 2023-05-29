@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting.WindowsServices;
@@ -21,7 +22,7 @@ using System.Security.Cryptography.X509Certificates;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions()
 {
     Args = args,
-    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default
+    WebRootPath = $"{AppContext.BaseDirectory}/frontend"
 });
 
 var applicationConfiguration = new Configuration(
@@ -36,7 +37,10 @@ var applicationConfiguration = new Configuration(
     connectionString: Environment.GetEnvironmentVariable("CONNECTION_STRING"),
     accessTokenLifetime: TimeSpan.FromSeconds(3),
     timelinessMarginFactor: 0.5,
-    enableTls: Environment.GetEnvironmentVariable("TLS_ENABLED")
+    enableTls: Environment.GetEnvironmentVariable("TLS_ENABLED"),
+    useBuiltFrontend: Environment.GetEnvironmentVariable("USE_BUILT_FRONTEND"),
+    tlsCertificatePath: Environment.GetEnvironmentVariable("TLS_CERTIFICATE_PATH"),
+    tlsPrivateKeyPath: Environment.GetEnvironmentVariable("TLS_PRIVATE_KEY_PATH")
 );
 
 // Add services to the container.
@@ -95,20 +99,36 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IAuthorizationHandler, AllowTeamMemberHandler>();
 builder.Services.AddSingleton<IAuthorizationHandler, AllowAuthenticationHandler>();
 
+if (
+    applicationConfiguration.UseBuiltFrontend ||
+    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production
+)
+{
+    builder.Services.AddSpaStaticFiles(options =>
+    {
+        options.RootPath = $"{AppContext.BaseDirectory}/frontend";
+    });
+}
+
 builder.Host.UseWindowsService();
 
 if (
     applicationConfiguration.EnableTls ||
     applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production)
 {
-    var certPath = AppContext.BaseDirectory + "./certificate.pem";
-    var keyPath = AppContext.BaseDirectory + "./private_key.pem";
-    var cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+    var cert = X509Certificate2.CreateFromPemFile(
+        applicationConfiguration.TlsCertificatePath,
+        applicationConfiguration.TlsPrivateKeyPath);
+
+    // Bloody fucking hell. I spent an entire day wondering why the HTTPS connection kept failing.
+    // Error logs hidden by default. I set the logging level to trace.
+    // See : https://github.com/dotnet/runtime/issues/45680
+    cert = new X509Certificate2(cert.Export(X509ContentType.Pkcs12));
 
     builder.WebHost.ConfigureKestrel(options =>
     {
         options.Listen(IPAddress.Any, 80); // Should redirect to port 443.
-        options.Listen(IPAddress.Any, 443, listenOptions =>
+        options.Listen(IPAddress.Any, 5000, listenOptions =>
         {
             listenOptions.UseHttps(cert);
         });
@@ -119,19 +139,33 @@ var app = builder.Build();
 
 app.UseRouting();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 if (
     applicationConfiguration.EnableTls ||
     applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production)
 {
     app.UseHttpsRedirection();
     app.UseHsts();
+}
+
+if (
+    applicationConfiguration.UseBuiltFrontend ||
+    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production
+)
+{
+    var options = new DefaultFilesOptions();
+    options.DefaultFileNames.Clear();
+    options.DefaultFileNames.Add("index.html");
+    app.UseDefaultFiles(options);
+
+    app.UseStaticFiles();
+    app.UseSpaStaticFiles();
+}
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseErrorHandling();
@@ -147,14 +181,20 @@ app.UseEndpoints(endpoints =>
     endpoints.MapControllers();
 });
 
-app.UseSpa(config =>
+if (!(
+    applicationConfiguration.UseBuiltFrontend ||
+    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production
+))
 {
-    config.Options.SourcePath = "./../../../frontend/";
-
-    if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
+    app.UseSpa(config =>
     {
-        config.UseReactDevelopmentServer(npmScript: "start");
-    }
-});
+        config.Options.SourcePath = "./../../../frontend/";
+
+        if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
+        {
+            config.UseReactDevelopmentServer(npmScript: "start");
+        }
+    });
+}
 
 app.Run();

@@ -1,4 +1,6 @@
-﻿namespace SkripsiAppBackend.Common
+﻿using Microsoft.IdentityModel.Tokens;
+
+namespace SkripsiAppBackend.Common
 {
     public class Configuration
     {
@@ -20,7 +22,10 @@
             string connectionString,
             TimeSpan accessTokenLifetime,
             double timelinessMarginFactor,
-            string enableTls
+            string enableTls,
+            string useBuiltFrontend,
+            string tlsCertificatePath,
+            string tlsPrivateKeyPath
         )
         {
             JwtSigningSecret = jwtSigningSecret;
@@ -43,7 +48,11 @@
 
             TimelinessMarginFactor = timelinessMarginFactor;
 
-            EnableTls = enableTls != null ? Boolean.Parse(enableTls) : false;
+            EnableTls = enableTls != null ? bool.Parse(enableTls) : false;
+            UseBuiltFrontend = useBuiltFrontend != null ? bool.Parse(useBuiltFrontend) : false;
+
+            TlsCertificatePath = tlsCertificatePath;
+            TlsPrivateKeyPath = tlsPrivateKeyPath;
         }
         public string JwtSigningSecret { get; private set; }
         public string ClientAppId { get; private set; }
@@ -57,5 +66,8 @@
         public TimeSpan AccessTokenLifetime { get; private set; }
         public double TimelinessMarginFactor { get; private set; }
         public bool EnableTls { get; private set; }
+        public bool UseBuiltFrontend { get; private set; }
+        public string TlsCertificatePath { get; private set; }
+        public string TlsPrivateKeyPath { get; private set; }
     }
 }
