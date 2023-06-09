@@ -396,18 +396,19 @@ namespace SkripsiAppBackend.Calculations
             return await CalculateReportedEarnedValue(organizationName, projectId, teamId, DateTime.MinValue, now);
         }
 
-        public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        private async Task<double> CalculateReportedEffort(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end,
+            CalculationLog? log = null)
         {
-            var log = logging.CreateCalculationLog("Reported Earned Value (REV)");
-            log.Argument(new Args(organizationName, projectId, teamId, start, end));
-
             var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
-
-            var teamTask = database.TrackedTeams.ReadByKey(teamKey);
             var reportsTask = database.Reports.ReadTeamReports(teamKey);
             var sprintsTask = azureDevops.ReadTeamSprints(organizationName, projectId, teamId);
 
-            await Task.WhenAll(teamTask, reportsTask, sprintsTask);
+            await Task.WhenAll(reportsTask, sprintsTask);
 
             var reportEffortTasks = reportsTask.Result
                 .Where(report => report.StartDate.IsBetween(start, end) || report.EndDate.IsBetween(start, end))
@@ -427,7 +428,7 @@ namespace SkripsiAppBackend.Calculations
 
                         var adjustedSprint = common.AdjustSprint(sprint, workItems.Where(workItem => workItem.State == WorkItemState.Done).ToList(), report.StartDate, report.EndDate);
 
-                        log.Record($"(Report {report.Id} - {sprint.Name}) Report duration={report.StartDate}-{report.EndDate}; Sprint duration={sprint.StartDate}-{sprint.EndDate}; Work factor={adjustedSprint.WorkFactor}; Effort={adjustedSprint.Effort}");
+                        log?.Record($"(Report {report.Id} - {sprint.Name}) Report duration={report.StartDate}-{report.EndDate}; Sprint duration={sprint.StartDate}-{sprint.EndDate}; Work factor={adjustedSprint.WorkFactor}; Effort={adjustedSprint.Effort}");
 
                         return adjustedSprint;
                     });
@@ -443,6 +444,21 @@ namespace SkripsiAppBackend.Calculations
 
             var totalEffort = reportEfforts.Aggregate(0d, (total, effort) => total + effort);
 
+            return totalEffort;
+        }
+
+        public async Task<long> CalculateReportedEarnedValue(string organizationName, string projectId, string teamId, DateTime start, DateTime end)
+        {
+            var log = logging.CreateCalculationLog("Reported Earned Value (REV)");
+            log.Argument(new Args(organizationName, projectId, teamId, start, end));
+
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+
+            var teamTask = database.TrackedTeams.ReadByKey(teamKey);
+            var totalEffort = CalculateReportedEffort(organizationName, projectId, teamId, start, end, log);
+
+            await Task.WhenAll(teamTask, totalEffort);
+
             log.Record($"Total effort = {totalEffort}");
 
             if (!teamTask.Result.CostPerEffort.HasValue)
@@ -450,7 +466,7 @@ namespace SkripsiAppBackend.Calculations
                 throw new UserFacingException(UserFacingException.ErrorCodes.TEAM_NO_EFFORT_COST);
             }
 
-            var reportedEarnedValue = totalEffort * (double)(teamTask.Result.CostPerEffort);
+            var reportedEarnedValue = totalEffort.Result * (double)(teamTask.Result.CostPerEffort);
 
             log.Record($"CPE = {teamTask.Result.CostPerEffort}");
             log.Record($"REV = {reportedEarnedValue}");
@@ -549,6 +565,95 @@ namespace SkripsiAppBackend.Calculations
 
                 return CostEstimationFormulas.Atypical(actualCost.Result, estimatedEarnedValue.Result, earnedValue.Result);
             }
+        }
+
+        public struct CpiCriteria
+        {
+            public long Budget { get; set; }
+            public double Effort { get; set; }
+            public long Expenditure { get; set; }
+        }
+
+        public async Task<CpiCriteria> CalculateCpiCriteria(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now)
+        {
+            var start = await common.GetTeamStartDate(organizationName, projectId, teamId);
+            var criteria = await CalculateCpiCriteria(organizationName, projectId, teamId, start, now);
+
+            return criteria;
+        }
+
+        public async Task<CpiCriteria> CalculateCpiCriteria(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end)
+        {
+            var budget = CalculateReportedEarnedValue(organizationName, projectId, teamId, start, end);
+            var effort = CalculateReportedEffort(organizationName, projectId, teamId, start, end);
+            var expenditure = CalculateActualCost(organizationName, projectId, teamId, start, end);
+
+            await Task.WhenAll(budget, effort, expenditure);
+
+            var criteria = new CpiCriteria()
+            {
+                Budget = budget.Result,
+                Effort = effort.Result,
+                Expenditure = expenditure.Result
+            };
+
+            return criteria;
+        }
+
+        public struct SpiCriteria
+        {
+            public double ActualDuration { get; set; }
+            public double EffortQuota { get; set; }
+            public double CompletedEffort { get; set; }
+        }
+
+        public async Task<SpiCriteria> CalculateSpiCriteria(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime now)
+        {
+            var start = await common.GetTeamStartDate(organizationName, projectId, teamId);
+            var criteria = await CalculateSpiCriteria(organizationName, projectId, teamId, start, now);
+
+            return criteria;
+        }
+
+        public async Task<SpiCriteria> CalculateSpiCriteria(
+            string organizationName,
+            string projectId,
+            string teamId,
+            DateTime start,
+            DateTime end)
+        {
+            var team = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
+            var plannedValue = CalculatePlannedValue(organizationName, projectId, teamId, start, end);
+            var actualEarnedValue = CalculateActualEarnedValue(organizationName, projectId, teamId, start, end);
+            var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+            var effort = common.CalculateTeamTotalEffort(organizationName, projectId, teamId);
+
+            await Task.WhenAll(team, plannedValue, actualEarnedValue, budgetAtCompletion, effort);
+
+            var actualDuration = start.WorkingDaysUntil(end, team.Result);
+            var effortQuota = (Convert.ToDouble(plannedValue.Result) / Convert.ToDouble(budgetAtCompletion.Result)) * effort.Result;
+            var completedEffort = (Convert.ToDouble(actualEarnedValue.Result) / Convert.ToDouble(budgetAtCompletion.Result)) * effort.Result;
+
+            var criteria = new SpiCriteria()
+            {
+                ActualDuration = actualDuration,
+                EffortQuota = effortQuota,
+                CompletedEffort = completedEffort
+            };
+            return criteria;
         }
     }
 }

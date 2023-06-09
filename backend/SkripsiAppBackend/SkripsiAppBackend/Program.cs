@@ -22,6 +22,7 @@ using System.Security.Cryptography.X509Certificates;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions()
 {
     Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default,
     WebRootPath = $"{AppContext.BaseDirectory}/frontend"
 });
 
@@ -55,9 +56,19 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(applicationConfiguration);
 builder.Services.AddSingleton<IKeyValueService, InMemoryKeyValueService>();
 builder.Services.AddScoped<AccessTokenService>();
-builder.Services.AddSingleton<IDateTimeService, MockDateTimeService>();
+builder.Services.AddSingleton<IDateTimeService>(_ =>
+{
+    if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
+    {
+        return new MockDateTimeService();
+    }
+    else
+    {
+        return new WestIndonesianDateTimeService();
+    }
+});
 
-builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(5)));
+builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(30)));
 
 builder.Services.AddSingleton((service) =>
 {
@@ -78,12 +89,9 @@ builder.Services.AddInMemoryObjectCaching(
     typeof(IAzureDevopsService.Team)
 );
 
-if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
-{
-    var database = new Database(applicationConfiguration.ConnectionString);
-    database.Migrate();
-    builder.Services.AddSingleton(database);
-}
+var database = new Database(applicationConfiguration.ConnectionString);
+database.Migrate();
+builder.Services.AddSingleton(database);
 
 builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
 
@@ -128,7 +136,7 @@ if (
     builder.WebHost.ConfigureKestrel(options =>
     {
         options.Listen(IPAddress.Any, 80); // Should redirect to port 443.
-        options.Listen(IPAddress.Any, 5000, listenOptions =>
+        options.Listen(IPAddress.Any, 443, listenOptions =>
         {
             listenOptions.UseHttps(cert);
         });
@@ -136,8 +144,6 @@ if (
 }
 
 var app = builder.Build();
-
-app.UseRouting();
 
 if (
     applicationConfiguration.EnableTls ||
@@ -161,6 +167,8 @@ if (
     app.UseSpaStaticFiles();
 }
 
+app.UseRouting();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -181,20 +189,13 @@ app.UseEndpoints(endpoints =>
     endpoints.MapControllers();
 });
 
-if (!(
-    applicationConfiguration.UseBuiltFrontend ||
-    applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Production
-))
+app.UseSpa(config =>
 {
-    app.UseSpa(config =>
+    if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
     {
         config.Options.SourcePath = "./../../../frontend/";
+        config.UseReactDevelopmentServer(npmScript: "start");
+    }
+});
 
-        if (applicationConfiguration.Environment == Configuration.ExecutionEnvironment.Development)
-        {
-            config.UseReactDevelopmentServer(npmScript: "start");
-        }
-    });
-}
-
-app.Run();
+await app.RunAsync();

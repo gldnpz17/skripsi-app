@@ -1,6 +1,7 @@
 ﻿using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
+using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
 using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Calculations
@@ -31,7 +32,9 @@ namespace SkripsiAppBackend.Calculations
         {
             public Report Report { get; set; }
             public double CostPerformanceIndex { get; set; }
+            public CpiCriteria CpiCriteria { get; set; }
             public double SchedulePerformanceIndex { get; set; }
+            public SpiCriteria SpiCriteria { get; set; } 
             public List<string> Errors { get; set; }
         }
 
@@ -78,6 +81,15 @@ namespace SkripsiAppBackend.Calculations
                         report.StartDate,
                         report.EndDate
                     ));
+
+                    var cpiCriteria = ExceptionHelpers.GetResultOrException(async () => await evm.CalculateCpiCriteria(
+                        organizationName,
+                        projectId,
+                        teamId,
+                        report.StartDate,
+                        report.EndDate
+                    ));
+
                     var spi = ExceptionHelpers.GetResultOrException(async () => await evm.CalculateSchedulePerformanceIndex(
                         organizationName,
                         projectId,
@@ -86,14 +98,28 @@ namespace SkripsiAppBackend.Calculations
                         report.EndDate
                     ));
 
-                    await Task.WhenAll(cpi, spi);
+                    var spiCriteria = ExceptionHelpers.GetResultOrException(async () => await evm.CalculateSpiCriteria(
+                        organizationName,
+                        projectId,
+                        teamId,
+                        report.StartDate,
+                        report.EndDate
+                    ));
+
+                    await Task.WhenAll(cpi, cpiCriteria, spi, spiCriteria);
 
                     return new SingleReportMetrics()
                     {
                         Report = Report.FromModel(report),
                         CostPerformanceIndex = cpi.Result.Value,
+                        CpiCriteria = cpiCriteria.Result.Value,
                         SchedulePerformanceIndex = spi.Result.Value,
-                        Errors = ExceptionHelpers.GetErrors(cpi.Result.Exception, spi.Result.Exception)
+                        SpiCriteria = spiCriteria.Result.Value,
+                        Errors = ExceptionHelpers.GetErrors(
+                            cpi.Result.Exception,
+                            spi.Result.Exception,
+                            cpiCriteria.Result.Exception,
+                            spiCriteria.Result.Exception)
                     };
                 })
             ))

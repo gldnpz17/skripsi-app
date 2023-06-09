@@ -1,0 +1,43 @@
+<mxfile host="65bd71144e">
+    <diagram id="-4zz-Fm9gVUsiEVwYoZf" name="Page-1">
+        <mxGraphModel dx="840" dy="1678" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="10" value="&lt;span style=&quot;&quot;&gt;&amp;lt;&amp;lt;Hosting Platform&amp;gt;&amp;gt;&lt;/span&gt;&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;&lt;div style=&quot;&quot;&gt;Virtual Machine on Microsoft Azure&lt;/div&gt;" style="verticalAlign=top;align=center;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="-10" width="490" height="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="&lt;span style=&quot;&quot;&gt;&amp;lt;&amp;lt;Operating System&amp;gt;&amp;gt;&lt;/span&gt;&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Windows 10&lt;/span&gt;&lt;/div&gt;" style="verticalAlign=top;align=center;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="50" width="440" height="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="&lt;span style=&quot;&quot;&gt;&amp;lt;&amp;lt;Application Server&amp;gt;&amp;gt;&lt;/span&gt;&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;ProjectHealthMonitor&lt;/span&gt;&lt;/div&gt;" style="verticalAlign=top;align=center;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="260" y="110" width="210" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Front End&#10;Static Files" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="295.5" y="170" width="130" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Business Logic" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="295.5" y="240" width="130" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="Database Server" style="verticalAlign=top;align=center;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="490" y="165" width="160" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="" style="endArrow=none;html=1;exitX=0;exitY=0;exitDx=100;exitDy=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=45;entryDy=160;entryPerimeter=0;" edge="1" parent="1" source="4" target="6">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="518" y="220" as="sourcePoint"/>
+                        <mxPoint x="568" y="170" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="11" value="Azure DevOps" style="verticalAlign=top;align=center;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="186" width="160" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="" style="endArrow=none;html=1;entryX=0;entryY=0;entryDx=110;entryDy=210;entryPerimeter=0;exitX=0;exitY=0;exitDx=35;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="11" target="4">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="100" y="150" as="sourcePoint"/>
+                        <mxPoint x="150" y="100" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

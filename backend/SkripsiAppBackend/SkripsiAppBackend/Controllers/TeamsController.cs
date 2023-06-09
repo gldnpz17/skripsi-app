@@ -161,11 +161,13 @@ namespace SkripsiAppBackend.Controllers
         public struct SpiMetric
         {
             public double SchedulePerformanceIndex { get; set; }
+            public SpiCriteria Criteria { get; set; }
         }
 
         public struct CpiMetric
         {
             public double CostPerformanceIndex { get; set; }
+            public CpiCriteria Criteria { get; set; }
         }
 
         public struct FinanceStatus
@@ -198,11 +200,15 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var spi = await evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var spi = evm.CalculateSchedulePerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var criteria = evm.CalculateSpiCriteria(organizationName, projectId, teamId, dateTimeService.GetNow());
+
+            await Task.WhenAll(spi, criteria);
 
             return new SpiMetric()
             {
-                SchedulePerformanceIndex = spi
+                SchedulePerformanceIndex = spi.Result,
+                Criteria = criteria.Result
             };
         }
 
@@ -218,11 +224,15 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            var cpi = await evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var cpi = evm.CalculateCostPerformanceIndex(organizationName, projectId, teamId, dateTimeService.GetNow());
+            var criteria = evm.CalculateCpiCriteria(organizationName, projectId, teamId, dateTimeService.GetNow());
+
+            await Task.WhenAll(cpi, criteria);
 
             return new CpiMetric()
             {
-                CostPerformanceIndex = cpi
+                CostPerformanceIndex = cpi.Result,
+                Criteria = criteria.Result
             };
         }
 

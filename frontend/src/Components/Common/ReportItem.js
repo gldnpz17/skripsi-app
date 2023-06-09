@@ -2,16 +2,17 @@ import { useCallback } from "react"
 import { Format } from "../../common/Format"
 import { Cash, Edit, Speedometer } from "../../common/icons"
 import { IconButton } from "./IconButton"
+import { CpiReason, SpiReason } from "../../pages/Dashboard"
 
 const ReportItemContainer = ({ children, onClick, href }) => (
-  <a {...{ onClick, href }} target='_blank' className='flex relative items-center bg-dark-2 p-4 rounded-md border border-gray-700 shadow cursor-pointer hover:brightness-125 duration-150'>
+  <a {...{ onClick, href }} target='_blank' className='flex relative items-center bg-dark-2 p-4 rounded-md border border-gray-700 shadow cursor-pointer hover:brightness-125 duration-150 z-50'>
     {children}
   </a>
 )
 
 const ReportStatus = ({ status, tooltip }) => (
   <span className={`${Format.statusColor(status, 'bg-')} text-black px-2 rounded text-sm relative group`}>
-    <div className='absolute bottom-8 bg-dark-2 px-2 py-1 text-white rounded border border-gray-700 left-1/2 -translate-x-1/2 shadow-md invisible group-hover:visible'>
+    <div className='absolute bottom-8 bg-dark-2 px-2 py-1 text-white rounded border border-gray-700 left-1/2 -translate-x-1/2 shadow-md invisible group-hover:visible z-50'>
       {tooltip}
     </div>
     {Format.status(status)}
@@ -29,21 +30,31 @@ const ReportItem = ({
     },
     schedulePerformanceIndex,
     costPerformanceIndex,
-    errors
+    errors,
+    cpiCriteria,
+    spiCriteria
   } 
 }) => (
-  <ReportItemContainer href={`team/${organizationName}/${projectId}/${teamId}/reports/${id}/edit`}>
+  <ReportItemContainer href={`/team/${organizationName}/${projectId}/${teamId}/reports/${id}/edit`}>
     <span className='mr-2'>{Format.month(startDate)}</span>
     <span className='flex-grow'></span>
     <Speedometer className='h-4 mr-2' />
     <ReportStatus
       status={Format.performanceIndex(schedulePerformanceIndex).status}
-      tooltip={<div className='whitespace-nowrap'><b>SPI :</b> {Format.number(schedulePerformanceIndex, 3)}</div>}
+      tooltip={
+        <div className='w-80'>
+          <SpiReason criteria={spiCriteria} {...{ schedulePerformanceIndex }} />
+        </div>
+      }
     />
     <Cash className='h-4 mr-2 ml-4' />
     <ReportStatus
       status={errors.includes('ZERO_EXPENDITURE') ? 'Healthy' : Format.performanceIndex(costPerformanceIndex).status}
-      tooltip={<div className='whitespace-nowrap'><b>CPI :</b> {Format.number(costPerformanceIndex, 3)}</div>}
+      tooltip={
+        <div className='w-80'>
+          <CpiReason criteria={cpiCriteria} {...{ costPerformanceIndex }} />
+        </div>
+      }
     />
   </ReportItemContainer>
 )

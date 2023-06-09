@@ -37,8 +37,8 @@ namespace SkripsiAppBackend.Calculations
             var backlogWorkItems = await azureDevops.ReadBacklogWorkItems(organizationName, projectId, teamId);
             var teamSprints = await GetAllSprintWorkItemsAsync(organizationName, projectId, teamId);
             var completedWorkItems = teamSprints
-                    .SelectMany(sprintWorkItems => sprintWorkItems.WorkItems)
-                    .Where(workItem => workItem.State == WorkItemState.Done);
+                .SelectMany(sprintWorkItems => sprintWorkItems.WorkItems)
+                .Where(workItem => workItem.State == WorkItemState.Done);
             var incompleteWorkItems = teamSprints
                 .SelectMany(sprintWorkItem => sprintWorkItem.WorkItems)
                 .Where(workItem => workItem.State != WorkItemState.Done);

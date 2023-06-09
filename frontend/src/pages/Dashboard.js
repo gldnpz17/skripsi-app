@@ -180,6 +180,70 @@ const TooltipWrapper = ({ children, tooltip }) => (
   </div>
 )
 
+const PerformanceIndexReason = ({ reason, conclusion }) => (
+  <div className='flex flex-col flex-grow'>
+    {reason}
+    <div className='flex items-center text-sm'>
+      <div className='bg-primary-dark h-4 w-1 mr-1 inline-block'></div>
+      {conclusion}
+    </div>
+  </div>
+)
+
+const CpiReason = ({
+  criteria: {
+    budget,
+    effort,
+    expenditure
+  },
+  costPerformanceIndex
+}) => (
+  <PerformanceIndexReason
+    reason={
+      <div className='mb-1 text-gray-400 text-sm flex-grow'>
+        Having finished <b className='text-gray-200'>{Format.number(effort, 2)}</b> units of work,
+        your allocated budget is <b className='text-gray-200'>{Format.currency(budget)}</b>.
+        Meanwhile, you've spent <b className='text-gray-200'>{Format.currency(expenditure)}</b>.
+      </div>
+    }
+    conclusion={
+      <>
+        Therefore, your CPI is&nbsp;
+        {costPerformanceIndex >= 1 
+          ? <b className='text-green-400'>healthy</b> 
+          : <b className='text-red-400'>critical</b>}
+      </>
+    }
+  />
+)
+
+const SpiReason = ({
+  criteria: {
+    actualDuration,
+    effortQuota,
+    completedEffort
+  },
+  schedulePerformanceIndex
+}) => (
+  <PerformanceIndexReason
+    reason={
+      <div className='mb-1 text-gray-400 text-sm flex-grow'>
+        In <b className='text-gray-200'>{Math.round(actualDuration)}</b> days,
+        you're expected to have finished <b className='text-gray-200'>{Format.number(effortQuota, 2)}</b> units of work.
+        Meanwhile, you've finished <b className='text-gray-200'>{Format.number(completedEffort, 2)}</b> units of work.
+      </div>
+    }
+    conclusion={
+      <>
+        Therefore, your SPI is&nbsp;
+        {schedulePerformanceIndex >= 1 
+          ? <b className='text-green-400'>healthy</b> 
+          : <b className='text-red-400'>critical</b>}
+      </>
+    }
+  />
+)
+
 const IndexMeter = ({
   label,
   icon,
@@ -196,7 +260,8 @@ const IndexMeter = ({
     value,
     hint
   },
-  warning
+  warning,
+  detail
 }) => {
   const Icon = icon
   const SeverityColor = {
@@ -207,7 +272,7 @@ const IndexMeter = ({
   const position = useMemo(() => Math.round((Math.max(0, Math.min(2, Format.performanceIndexPercent(value) + 1)) / 2) * 100), [value])
 
   return (
-    <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
+    <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg h-full flex flex-col'>
       <div className='text-gray-400 flex items-center'>
         <Icon className='h-4 inline' />&nbsp;
         {label}
@@ -247,6 +312,12 @@ const IndexMeter = ({
           <div className='text-xs font-semibold px-2 py-1 rounded-full bg-gray-700'>{hint}</div>
         </div>
       </div>
+      {detail && (
+        <div className='flex-grow flex flex-col'>
+          <div className='h-[1px] bg-gray-500 w-full my-2'></div>
+          {detail}
+        </div>
+      )}
     </div>
   )
 }
@@ -678,7 +749,7 @@ const MilestoneChartSection = ({ data }) => {
   return (
     <div className='rounded-md border border-gray-700 p-4 bg-dark-2 shadow-lg'>
       <div className='mb-2'>Remaining Work and Budget</div>
-      <div className='mb-4 text-sm text-gray-400'>Ideal order : remaining budget {`<=`} remaining work & ideal remaining work {`>=`} remaining work</div>
+      <div className='mb-4 text-sm text-gray-400'>Ideal order : (remaining budget {`>=`} remaining work) & (remaining work {`<=`} ideal remaining work)</div>
       <div className='mb-4'>
         <Bar
           style={{ width: '100%', height: '18rem' }}
@@ -764,7 +835,12 @@ const VelocityChartSection = ({ data }) => {
   )
 }
 
-const PunctualitySection = ({ spi: { schedulePerformanceIndex } }) => (
+const PunctualitySection = ({ 
+  spi: {
+    schedulePerformanceIndex,
+    criteria
+  }
+}) => (
   <IndexMeter
     label='Punctuality'
     icon={CheckeredFlag}
@@ -787,10 +863,17 @@ const PunctualitySection = ({ spi: { schedulePerformanceIndex } }) => (
       value: Format.number(schedulePerformanceIndex, 2),
       hint: schedulePerformanceIndex >= 1 ? `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% early` : `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% late`
     }}
+    detail={<SpiReason {...{ criteria, schedulePerformanceIndex }} />}
   />
 )
 
-const BudgetSection = ({ cpi: { costPerformanceIndex }, selectedTeam }) => (
+const BudgetSection = ({ 
+  cpi: { 
+    costPerformanceIndex,
+    criteria
+  },
+  selectedTeam
+}) => (
   <IndexMeter
     label='Budget'
     icon={CashStack}
@@ -814,6 +897,7 @@ const BudgetSection = ({ cpi: { costPerformanceIndex }, selectedTeam }) => (
       hint: costPerformanceIndex >= 1 ? `${Math.abs(Math.round(Format.performanceIndexPercent(costPerformanceIndex) * 100))}% under budget` : `${Math.abs(Math.round(Format.performanceIndexPercent(costPerformanceIndex) * 100))}% over budget`
     }}
     warning={selectedTeam.eacFormula === 'Atypical' && <div className='w-96 whitespace-pre-wrap'>Cost estimation formula is atypical. Cost performance may not be reflected in cost estimates.</div>}
+    detail={<CpiReason {...{ criteria, costPerformanceIndex }} />}
   />
 )
 
@@ -1141,8 +1225,17 @@ const Page = () => {
     if (!teams) return
 
     const storedTeamId = window.localStorage.getItem('defaultTeamId')
-    const team = teams.find(team => team.id === storedTeamId) ?? teams.length > 0 ? teams[0] : undefined
-    setSelectedTeam(team)
+    const storedTeam = teams.find(team => team.id === storedTeamId)
+    
+    if (storedTeam) {
+      setSelectedTeam(storedTeam)
+    } else {
+      if (teams.length > 0) {
+        setSelectedTeam(teams[0])
+      } else {
+        setSelectedTeam(undefined)
+      }
+    }
   }, [teamsLoading, teams])
 
   const setSelectedTeamProxy = (team) => {
@@ -1195,4 +1288,4 @@ const Page = () => {
 
 const DashboardPage = withAuth(Page)
 
-export { DashboardPage }
+export { DashboardPage, CpiReason, SpiReason }

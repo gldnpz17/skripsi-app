@@ -83,10 +83,10 @@ const Page = () => {
   if (sprintsLoading) return <></>
 
   return (
-    <div className='py-8 pr-6 flex min-h-full'>
+    <div className='py-8 pr-6 flex min-h-full relative'>
       <div className='flex-grow flex flex-col'>
         <div>
-          <TitleSection title='Edit New Report' {...{ start, end }} />
+          <TitleSection title='Edit Report' {...{ start, end }} />
         </div>
         <div className='mb-6'>
           <SprintsSection {...{ timespanSprints }} />

@@ -87,7 +87,6 @@ const ProjectSelectionSection = ({ organization, setProject, setOrganization }) 
     <div>
       {!isLoading && (
         <div>
-          <div className='mb-4'>Select a project</div>
           <div className='mb-2 text-sm'>Selected organization</div>
           <div className='mb-6'>
             <OrganizationButton {...{ organization }} />
