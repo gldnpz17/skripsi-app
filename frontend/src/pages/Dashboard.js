@@ -717,29 +717,51 @@ const MilestoneChartSection = ({ data }) => {
     }
   }
 
+  const borderDash = (ctx) => ctx.p1.raw.forecast ? [5, 5] : undefined
+
   const { remainingWork, remainingBudget, idealRemaining } = useMemo(() => {
     const remainingWork = {
       label: 'Remaining Work (%)',
       type: 'line',
-      data: data.map(datum => ({ y: Format.number(datum.remainingWorkPercentage, 3), x: Format.month(datum.month) })),
+      data: data.map(datum => ({ 
+        y: Format.number(datum.remainingWorkPercentage, 3),
+        x: Format.month(datum.month),
+        forecast: datum.isForecast 
+      })),
       borderColor: 'rgb(252, 169, 3)',
+      segment: {
+        borderDash
+      },
       order: 1
     }
 
     const remainingBudget = {
       label: 'Remaining Budget (%)',
       type: 'line',
-      data: data.map(datum => ({ y: Format.number(datum.remainingBudgetPercentage, 3), x: Format.month(datum.month) })),
+      data: data.map(datum => ({ 
+        y: Format.number(datum.remainingBudgetPercentage, 3), 
+        x: Format.month(datum.month),
+        forecast: datum.isForecast 
+      })),
       borderColor: 'rgb(2, 181, 76)',
+      segment: {
+        borderDash
+      },
       order: 1
     }
 
     const idealRemaining = {
       label: 'Ideal Remaining Work (%)',
       type: 'line',
-      data: data.map(datum => ({ y: Format.number(datum.idealRemainingPercentage, 3), x: Format.month(datum.month) })),
+      data: data.map(datum => ({ 
+        y: Format.number(datum.idealRemainingPercentage, 3), 
+        x: Format.month(datum.month),
+        forecast: datum.isForecast  
+      })),
       borderColor: 'rgb(255, 233, 92)',
-      borderDash: [5, 5],
+      segment: {
+        borderDash
+      },
       order: 0
     }
 

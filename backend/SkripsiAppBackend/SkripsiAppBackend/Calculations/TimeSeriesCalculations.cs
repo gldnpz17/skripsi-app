@@ -299,6 +299,7 @@ namespace SkripsiAppBackend.Calculations
             public double RemainingWorkPercentage { get; set; }
             public double RemainingBudgetPercentage { get; set; }
             public double IdealRemainingPercentage { get; set; }
+            public bool IsForecast { get; set; }
         }
 
         public async Task<List<MilestoneChartItem>> CalculateMilestoneChart(
@@ -331,10 +332,11 @@ namespace SkripsiAppBackend.Calculations
 
                 return new MilestoneChartItem()
                 {
-                    Month = report.StartDate,
+                    Month = report.EndDate,
                     RemainingWorkPercentage = remainingWorkPercentage,
                     RemainingBudgetPercentage = remainingBudgetPercentage,
-                    IdealRemainingPercentage = idealRemainingPercentage
+                    IdealRemainingPercentage = idealRemainingPercentage,
+                    IsForecast = report.EndDate > now
                 };
             });
 
