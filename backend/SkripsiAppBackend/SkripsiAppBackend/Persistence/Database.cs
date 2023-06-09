@@ -3,7 +3,9 @@ using FluentMigrator;
 using FluentMigrator.Runner;
 using SkripsiAppBackend.Persistence.Migrations;
 using System.Reflection;
-using SkripsiAppBackend.Persistence.Repositories;
+using SkripsiAppBackend.Persistence.Repositories.Reports;
+using SkripsiAppBackend.Persistence.Repositories.TrackedTeams;
+using SkripsiAppBackend.Services.UniversalCachingService;
 
 namespace SkripsiAppBackend.Persistence
 {
@@ -12,15 +14,21 @@ namespace SkripsiAppBackend.Persistence
         private readonly string connectionString;
         private readonly int version;
 
-        public TrackedTeamsRepository TrackedTeams { get; private set; }
-        public ReportsRepository Reports { get; private set; }
+        public ITrackedTeamsRepository TrackedTeams { get; private set; }
+        public IReportsRepository Reports { get; private set; }
 
-        public Database(string connectionString, int version = 100)
+        public Database(
+            InMemoryUniversalCachingService cache,
+            string connectionString, 
+            int version = 100)
         {
             this.connectionString = connectionString;
             this.version = version;
-            TrackedTeams = new TrackedTeamsRepository(connectionString);
-            Reports = new ReportsRepository(connectionString);
+
+            TrackedTeams = new TrackedTeamsCachingProxy(new TrackedTeamsRepository(connectionString), cache);
+            Reports = new ReportsCachingProxy(new ReportsRepository(connectionString), cache);
+
+            Migrate();
         }
 
         public void Migrate()

@@ -2,7 +2,7 @@
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Calculations
 {

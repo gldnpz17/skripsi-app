@@ -4,7 +4,7 @@ using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.UseCases.Extensions;
 using System.Security.Cryptography.X509Certificates;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 using static SkripsiAppBackend.Services.LoggingService.LoggingService;
 using static SkripsiAppBackend.Services.LoggingService.LoggingService.CalculationLog;

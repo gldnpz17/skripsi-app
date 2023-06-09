@@ -1,10 +1,11 @@
 ﻿using Dapper;
 using SkripsiAppBackend.Persistence.Models;
 using SkripsiAppBackend.Persistence.Repositories.Common;
+using SkripsiAppBackend.Persistence.Repositories.TrackedTeams;
 
-namespace SkripsiAppBackend.Persistence.Repositories
+namespace SkripsiAppBackend.Persistence.Repositories.Reports
 {
-    public class ReportsRepository : RepositoryBase
+    public class ReportsRepository : RepositoryBase, IReportsRepository
     {
         public ReportsRepository(string connectionString) : base(connectionString)
         {
@@ -95,6 +96,6 @@ SELECT * FROM reports WHERE
             };
 
             await connection.ExecuteAsync(sql, args);
-        } 
+        }
     }
 }

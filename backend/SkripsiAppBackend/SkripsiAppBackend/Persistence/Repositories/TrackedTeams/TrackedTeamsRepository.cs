@@ -2,9 +2,9 @@
 using SkripsiAppBackend.Persistence.Models;
 using SkripsiAppBackend.Persistence.Repositories.Common;
 
-namespace SkripsiAppBackend.Persistence.Repositories
+namespace SkripsiAppBackend.Persistence.Repositories.TrackedTeams
 {
-    public class TrackedTeamsRepository : RepositoryBase
+    public class TrackedTeamsRepository : RepositoryBase, ITrackedTeamsRepository
     {
         public TrackedTeamsRepository(string connectionString) : base(connectionString)
         {
@@ -22,6 +22,11 @@ namespace SkripsiAppBackend.Persistence.Repositories
             public string OrganizationName { get; set; }
             public string ProjectId { get; set; }
             public string TeamId { get; set; }
+
+            public override string ToString()
+            {
+                return $"{OrganizationName}_{ProjectId}_{TeamId}";
+            }
         }
 
         public async Task<List<TrackedTeam>> ReadByKeys(List<TrackedTeamKey> keys)
@@ -81,7 +86,8 @@ SELECT * FROM tracked_teams WHERE
 
             using var connection = GetConnection();
 
-            var args = new {
+            var args = new
+            {
                 OrganizationName = organizationName,
                 ProjectId = projectId,
                 TeamId = teamId

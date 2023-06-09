@@ -9,7 +9,7 @@ using SkripsiAppBackend.Common.Authorization;
 using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Persistence.Models;
-using SkripsiAppBackend.Persistence.Repositories;
+using SkripsiAppBackend.Persistence.Repositories.TrackedTeams;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.DateTimeService;
 using SkripsiAppBackend.Services.ObjectCachingService;
@@ -22,7 +22,7 @@ using System.Security.AccessControl;
 using static SkripsiAppBackend.Calculations.CommonCalculations;
 using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
 using static SkripsiAppBackend.Calculations.TimeSeriesCalculations;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Controllers
 {

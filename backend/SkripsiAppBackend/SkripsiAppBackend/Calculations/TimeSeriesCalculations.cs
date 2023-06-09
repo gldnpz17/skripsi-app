@@ -8,7 +8,7 @@ using SkripsiAppBackend.Services.DateTimeService;
 using SkripsiAppBackend.UseCases.Extensions;
 using System.Security.Cryptography.X509Certificates;
 using static SkripsiAppBackend.Calculations.TeamEvmCalculations;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Calculations
 {

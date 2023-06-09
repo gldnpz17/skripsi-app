@@ -1,7 +1,7 @@
 ﻿using SkripsiAppBackend.Common.Exceptions;
 using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.AzureDevopsService.IAzureDevopsService;
 
 namespace SkripsiAppBackend.Calculations

@@ -3,7 +3,7 @@ using SkripsiAppBackend.Persistence;
 using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.UseCases.Extensions;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 using static SkripsiAppBackend.Services.LoggingService.LoggingService.CalculationLog;
 
 namespace SkripsiAppBackend.Calculations

@@ -3,12 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using SkripsiAppBackend.Calculations;
 using SkripsiAppBackend.Common.Authorization;
 using SkripsiAppBackend.Persistence;
-using SkripsiAppBackend.Persistence.Repositories;
 using SkripsiAppBackend.UseCases;
 using System.Runtime.CompilerServices;
 using static SkripsiAppBackend.Calculations.CommonCalculations;
 using static SkripsiAppBackend.Calculations.ReportCalculations;
-using static SkripsiAppBackend.Persistence.Repositories.TrackedTeamsRepository;
+using static SkripsiAppBackend.Persistence.Repositories.TrackedTeams.TrackedTeamsRepository;
 
 namespace SkripsiAppBackend.Controllers
 {

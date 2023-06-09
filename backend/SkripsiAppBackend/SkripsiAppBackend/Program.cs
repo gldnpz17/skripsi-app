@@ -15,6 +15,7 @@ using SkripsiAppBackend.Services.AzureDevopsService;
 using SkripsiAppBackend.Services.DateTimeService;
 using SkripsiAppBackend.Services.LoggingService;
 using SkripsiAppBackend.Services.ObjectCachingService;
+using SkripsiAppBackend.Services.UniversalCachingService;
 using SkripsiAppBackend.UseCases;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -68,7 +69,7 @@ builder.Services.AddSingleton<IDateTimeService>(_ =>
     }
 });
 
-builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(30)));
+builder.Services.AddSingleton((service) => new InMemoryUniversalCachingService(TimeSpan.FromSeconds(10)));
 
 builder.Services.AddSingleton((service) =>
 {
@@ -89,9 +90,13 @@ builder.Services.AddInMemoryObjectCaching(
     typeof(IAzureDevopsService.Team)
 );
 
-var database = new Database(applicationConfiguration.ConnectionString);
-database.Migrate();
-builder.Services.AddSingleton(database);
+builder.Services.AddSingleton((service) =>
+{
+    return new Database(
+        service.GetRequiredService<InMemoryUniversalCachingService>(),
+        applicationConfiguration.ConnectionString
+    );
+});
 
 builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
 
