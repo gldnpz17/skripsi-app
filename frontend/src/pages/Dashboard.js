@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { Line, Bar } from "react-chartjs-2"
 import { Form, Link } from "react-router-dom"
 import { ApplicationError } from "../common/ApplicationError"
-import { AzureDevops, CalendarCheck, Cash, CashStack, CheckeredFlag, Configuration, DatabaseAlert, OpenInNew, PinFilled, PinFilledOff, PinOutline, PlusCircle, Speedometer, TimelineClock, Triangle, Warning } from "../common/icons"
+import { AzureDevops, CalendarCheck, Cash, CashStack, CheckeredFlag, ChevronDown, ChevronUp, Configuration, DatabaseAlert, OpenInNew, PinFilled, PinFilledOff, PinOutline, PlusCircle, Speedometer, TimelineClock, Triangle, Warning } from "../common/icons"
 import { CategoryScale, BarController, BarElement, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip, TimeScale } from 'chart.js'
 import { Format } from "../common/Format"
 import { useQuery } from "react-query"
@@ -267,7 +267,9 @@ const IndexMeter = ({
     hint
   },
   warning,
-  detail
+  detail,
+  expanded = true,
+  toggleExpand
 }) => {
   const Icon = icon
   const SeverityColor = {
@@ -319,10 +321,17 @@ const IndexMeter = ({
         </div>
       </div>
       {detail && (
-        <div className='flex-grow flex flex-col'>
-          <div className='h-[1px] bg-gray-500 w-full my-2'></div>
-          {detail}
-        </div>
+        <>
+          <div className={`flex-grow flex flex-col overflow-hidden ${expanded ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'} duration-500 ease-out`}>
+            <div className='h-[1px] bg-gray-500 w-full my-2'></div>
+            {detail}
+          </div>
+          <div className='mt-4'>
+            <Button onClick={toggleExpand} className='w-full py-1'>
+              {expanded ? <ChevronUp className='h-4' /> : <ChevronDown className='h-4' />}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -867,7 +876,9 @@ const PunctualitySection = ({
   spi: {
     schedulePerformanceIndex,
     criteria
-  }
+  },
+  expanded,
+  toggleExpand
 }) => (
   <IndexMeter
     label='Punctuality'
@@ -892,6 +903,7 @@ const PunctualitySection = ({
       hint: schedulePerformanceIndex >= 1 ? `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% early` : `${Math.abs(Math.round(Format.performanceIndexPercent(schedulePerformanceIndex) * 100))}% late`
     }}
     detail={<SpiReason {...{ criteria, schedulePerformanceIndex }} />}
+    {...{ expanded, toggleExpand }}
   />
 )
 
@@ -900,7 +912,9 @@ const BudgetSection = ({
     costPerformanceIndex,
     criteria
   },
-  selectedTeam
+  selectedTeam,
+  expanded,
+  toggleExpand
 }) => (
   <IndexMeter
     label='Budget'
@@ -926,6 +940,7 @@ const BudgetSection = ({
     }}
     warning={selectedTeam.eacFormula === 'Atypical' && <div className='w-96 whitespace-pre-wrap'>Cost estimation formula is atypical. Cost performance may not be reflected in cost estimates.</div>}
     detail={<CpiReason {...{ criteria, costPerformanceIndex }} />}
+    {...{ expanded, toggleExpand }}
   />
 )
 
@@ -964,12 +979,16 @@ const TimelineSection = ({
   />
 )
 
-const NewTeamDetailsSection = ({ selectedTeam }) => {
+const NewTeamDetailsSection = ({ selectedTeam, perfIndexExpanded, setPerfIndexExpanded }) => {
   const organizationName = selectedTeam.organization.name
   const projectId = selectedTeam.project.id
   const projectName = selectedTeam.project.name
   const teamId = selectedTeam.id
   const teamName = selectedTeam.name
+
+  const togglePerfIndexExpanded = useCallback(() => {
+    setPerfIndexExpanded(!perfIndexExpanded)
+  }, [perfIndexExpanded])
 
   const azureDevopsUrl = useMemo(() => {
     return `https://dev.azure.com/${encodeURIComponent(organizationName)}/${encodeURIComponent(projectName)}/_boards/board/t/${encodeURIComponent(teamName)}/Backlog%20items`
@@ -1128,7 +1147,11 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
           />
         )}
         {!spiError && (
-          <PunctualitySection {...{ spi }} />
+          <PunctualitySection
+            expanded={perfIndexExpanded}
+            toggleExpand={togglePerfIndexExpanded}
+            {...{ spi }}
+          />
         )}
       </div>
       {/* CPI */}
@@ -1141,7 +1164,11 @@ const NewTeamDetailsSection = ({ selectedTeam }) => {
           />
         )}
         {!cpiError && (
-          <BudgetSection {...{ cpi, selectedTeam }} />
+          <BudgetSection
+            expanded={perfIndexExpanded}
+            toggleExpand={togglePerfIndexExpanded}
+            {...{ cpi, selectedTeam }}
+          />
         )}
       </div>
       {/* Cost Breakdown */}
@@ -1248,6 +1275,7 @@ const Page = () => {
   } = useQuery(['projects', 'tracked'], readTrackedTeams)
 
   const [selectedTeam, setSelectedTeam] = useState(undefined)
+  const [perfIndexExpanded, setPerfIndexExpanded] = useState(false)
   
   useEffect(() => {
     if (!teams) return
@@ -1295,7 +1323,7 @@ const Page = () => {
     <div className='h-full overflow-auto'>
       <div className='mr-80 mt-8'>
         {selectedTeam && (
-          <NewTeamDetailsSection {...{ selectedTeam }}  />
+          <NewTeamDetailsSection {...{ selectedTeam, perfIndexExpanded, setPerfIndexExpanded }}  />
         )}
         {selectedTeam === null && (
           <NoSelectedTeamPlaceholder />
