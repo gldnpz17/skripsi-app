@@ -121,8 +121,11 @@ namespace SkripsiAppBackend.Calculations
             string projectId,
             string teamId,
             DateTime startDate,
-            DateTime endDate)
+            DateTime endDate,
+            Func<List<WorkItem>, List<WorkItem>> filterWorkItems = null)
         {
+            filterWorkItems = filterWorkItems ?? ((w) => w);
+
             var sprints = (await azureDevops.ReadTeamSprints(organizationName, projectId, teamId))
                 .Where(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
                 .Where(sprint =>
@@ -132,9 +135,9 @@ namespace SkripsiAppBackend.Calculations
                 )
                 .Select(async (sprint) =>
                 {
-                    var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
+                    var workItems = (await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id));
 
-                    return AdjustSprint(sprint, workItems, startDate, endDate);
+                    return AdjustSprint(sprint, filterWorkItems(workItems), startDate, endDate);
                 });
 
             var adjustedSprints = await Task.WhenAll(sprints);

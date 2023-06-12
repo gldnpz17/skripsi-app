@@ -190,8 +190,12 @@ const PerformanceIndexReason = ({ reason, conclusion }) => (
   </div>
 )
 
+const Highlight = ({ children }) => <b className='text-gray-200'>{children}</b>
+
 const CpiReason = ({
   criteria: {
+    totalBudget,
+    totalEffort,
     budget,
     effort,
     expenditure
@@ -201,9 +205,9 @@ const CpiReason = ({
   <PerformanceIndexReason
     reason={
       <div className='mb-1 text-gray-400 text-sm flex-grow'>
-        Having finished <b className='text-gray-200'>{Format.number(effort, 2)}</b> units of work,
-        your allocated budget is <b className='text-gray-200'>{Format.currency(budget)}</b>.
-        Meanwhile, you've spent <b className='text-gray-200'>{Format.currency(expenditure)}</b>.
+        With a project budget of <Highlight>{Format.currency(totalBudget)}</Highlight> and a project size of <Highlight>{Format.number(totalEffort, 2)}</Highlight> units of work.
+        Having finished <Highlight>{Format.number(effort, 2)}</Highlight> units of work, your allocated budget is <Highlight>{Format.currency(budget)}</Highlight>.
+        Meanwhile, you've spent <Highlight>{Format.currency(expenditure)}</Highlight>.
       </div>
     }
     conclusion={
@@ -219,6 +223,8 @@ const CpiReason = ({
 
 const SpiReason = ({
   criteria: {
+    projectDuration,
+    totalEffort,
     actualDuration,
     effortQuota,
     completedEffort
@@ -228,9 +234,9 @@ const SpiReason = ({
   <PerformanceIndexReason
     reason={
       <div className='mb-1 text-gray-400 text-sm flex-grow'>
-        In <b className='text-gray-200'>{Math.round(actualDuration)}</b> days,
-        you're expected to have finished <b className='text-gray-200'>{Format.number(effortQuota, 2)}</b> units of work.
-        Meanwhile, you've finished <b className='text-gray-200'>{Format.number(completedEffort, 2)}</b> units of work.
+        With a project duration of <Highlight>{Math.round(projectDuration)}</Highlight> days and a project size of <Highlight>{Format.number(totalEffort, 2)}</Highlight> units of work.
+        In <Highlight>{Math.round(actualDuration)}</Highlight> days, you're expected to have finished <Highlight>{Format.number(effortQuota, 2)}</Highlight> units of work.
+        Meanwhile, you've finished <Highlight>{Format.number(completedEffort, 2)}</Highlight> units of work.
       </div>
     }
     conclusion={

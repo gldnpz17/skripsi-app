@@ -261,7 +261,13 @@ namespace SkripsiAppBackend.Calculations
                 .OrderBy(report => report.StartDate)
                 .Select(async (report) =>
                 {
-                    var sprints = await common.ReadAdjustedSprints(organizationName, projectId, teamId, report.StartDate, report.EndDate);
+                    var sprints = await common.ReadAdjustedSprints(
+                        organizationName,
+                        projectId,
+                        teamId,
+                        report.StartDate,
+                        report.EndDate,
+                        (workItems) => workItems.Where(workItem => workItem.State == IAzureDevopsService.WorkItemState.Done).ToList());
                     var totalEffort = common.CalculateTotalEffort(sprints);
 
                     return new WorkCostChartItem()

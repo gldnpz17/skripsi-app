@@ -201,7 +201,13 @@ namespace SkripsiAppBackend.Controllers
                 return Unauthorized();
             }
 
-            return await commonCalculations.ReadAdjustedSprints(organizationName, projectId, teamId, start, end);
+            return await commonCalculations.ReadAdjustedSprints(
+                organizationName,
+                projectId,
+                teamId,
+                start,
+                end,
+                (workItems) => workItems.Where(workItem => workItem.State == Services.AzureDevopsService.IAzureDevopsService.WorkItemState.Done).ToList());
         }
     }
 }

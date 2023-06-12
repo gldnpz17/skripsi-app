@@ -25,7 +25,7 @@ const ReportSprint = ({
       <span>&nbsp;</span>
       <span>{Format.briefDate(accountedEndDate)}</span>
     </span>
-    <span className='bg-slate-700 rounded-full px-4 py-1 text-sm'>{Format.number(accountedEffort, 1)} Effort</span>
+    <span className='bg-slate-700 rounded-full px-4 py-1 text-sm'>{Format.number(accountedEffort, 2)} Effort</span>
   </div>
 )
 

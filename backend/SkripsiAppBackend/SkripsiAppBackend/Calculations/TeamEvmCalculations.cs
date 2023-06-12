@@ -179,6 +179,27 @@ namespace SkripsiAppBackend.Calculations
             return schedulePerformanceIndex;
         }
 
+        public async Task<double> CalculatePlannedDuration(
+            string organizationName,
+            string projectId,
+            string teamId,
+            CalculationLog? log = null)
+        {
+            var teamKey = new TrackedTeamKey(organizationName, projectId, teamId);
+
+            var team = database.TrackedTeams.ReadByKey(teamKey);
+            var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
+            var workDays = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
+
+            await Task.WhenAll(team, workDays, startDate);
+
+            var plannedDuration = startDate.Result.WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
+
+            log?.Record($"Planned duration = {plannedDuration}");
+
+            return plannedDuration;
+        }
+
         public async Task<DateTime> CalculateEstimatedCompletionDate(
             string organizationName,
             string projectId,
@@ -193,8 +214,9 @@ namespace SkripsiAppBackend.Calculations
             var startDate = common.GetTeamStartDate(organizationName, projectId, teamId);
             var team = database.TrackedTeams.ReadByKey(teamKey);
             var workDays = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
+            var plannedDuration = CalculatePlannedDuration(organizationName, projectId, teamId);
 
-            await Task.WhenAll(schedulePerformanceIndex, startDate, team, workDays);
+            await Task.WhenAll(schedulePerformanceIndex, startDate, team, workDays, plannedDuration);
 
             if (!team.Result.Deadline.HasValue)
             {
@@ -203,13 +225,10 @@ namespace SkripsiAppBackend.Calculations
 
             log.Record($"Start date = {startDate.Result}");
             log.Record($"Deadline = {team.Result.Deadline}");
-
-            var plannedDuration = startDate.Result.WorkingDaysUntil((DateTime)team.Result.Deadline, workDays.Result);
-            log.Record($"Planned duration = {plannedDuration}");
-            log.Record($"Work days = {workDays.Result}");
             log.Record($"SPI = {schedulePerformanceIndex.Result}");
+            log.Record($"Work days = {workDays.Result}");
 
-            var estimatedDuration = plannedDuration / schedulePerformanceIndex.Result;
+            var estimatedDuration = plannedDuration.Result / schedulePerformanceIndex.Result;
             log.Record($"Estimated duration = {estimatedDuration}");
 
             var estimatedCompletionDate = startDate.Result.AddWorkingDays(estimatedDuration, workDays.Result);
@@ -417,9 +436,8 @@ namespace SkripsiAppBackend.Calculations
                     var reportSprints = sprintsTask.Result
                         .Where(sprint => sprint.StartDate.HasValue && sprint.EndDate.HasValue)
                         .Where(sprint =>
-                            sprint.StartDate >= report.StartDate && sprint.EndDate <= report.EndDate ||
-                            sprint.StartDate <= report.StartDate && sprint.EndDate >= report.StartDate ||
-                            sprint.StartDate <= report.EndDate && sprint.EndDate >= report.EndDate
+                            ((DateTime)sprint.StartDate).IsBetween(report.StartDate, report.EndDate) ||
+                            ((DateTime)sprint.EndDate).IsBetween(report.StartDate, report.EndDate)
                         );
 
                     var adjustedSprintTasks = reportSprints.Select(async (sprint) =>
@@ -569,6 +587,8 @@ namespace SkripsiAppBackend.Calculations
 
         public struct CpiCriteria
         {
+            public long TotalBudget { get; set; }
+            public double TotalEffort { get; set; }
             public long Budget { get; set; }
             public double Effort { get; set; }
             public long Expenditure { get; set; }
@@ -593,14 +613,18 @@ namespace SkripsiAppBackend.Calculations
             DateTime start,
             DateTime end)
         {
+            var totalBudget = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
+            var totalEffort = common.CalculateTeamTotalEffort(organizationName, projectId, teamId);
             var budget = CalculateReportedEarnedValue(organizationName, projectId, teamId, start, end);
             var effort = CalculateReportedEffort(organizationName, projectId, teamId, start, end);
             var expenditure = CalculateActualCost(organizationName, projectId, teamId, start, end);
 
-            await Task.WhenAll(budget, effort, expenditure);
+            await Task.WhenAll(budget, effort, expenditure, totalBudget, totalEffort);
 
             var criteria = new CpiCriteria()
             {
+                TotalBudget = totalBudget.Result,
+                TotalEffort = totalEffort.Result,
                 Budget = budget.Result,
                 Effort = effort.Result,
                 Expenditure = expenditure.Result
@@ -611,6 +635,8 @@ namespace SkripsiAppBackend.Calculations
 
         public struct SpiCriteria
         {
+            public double ProjectDuration { get; set; }
+            public double TotalEffort { get; set; }
             public double ActualDuration { get; set; }
             public double EffortQuota { get; set; }
             public double CompletedEffort { get; set; }
@@ -635,13 +661,15 @@ namespace SkripsiAppBackend.Calculations
             DateTime start,
             DateTime end)
         {
+            var projectDuration = CalculatePlannedDuration(organizationName, projectId, teamId);
+            var totalEffort = common.CalculateTeamTotalEffort(organizationName, projectId, teamId);
             var team = azureDevops.ReadTeamWorkDays(organizationName, projectId, teamId);
             var plannedValue = CalculatePlannedValue(organizationName, projectId, teamId, start, end);
             var actualEarnedValue = CalculateActualEarnedValue(organizationName, projectId, teamId, start, end);
             var budgetAtCompletion = CalculateBudgetAtCompletion(organizationName, projectId, teamId);
             var effort = common.CalculateTeamTotalEffort(organizationName, projectId, teamId);
 
-            await Task.WhenAll(team, plannedValue, actualEarnedValue, budgetAtCompletion, effort);
+            await Task.WhenAll(team, plannedValue, actualEarnedValue, budgetAtCompletion, effort, totalEffort, projectDuration);
 
             var actualDuration = start.WorkingDaysUntil(end, team.Result);
             var effortQuota = (Convert.ToDouble(plannedValue.Result) / Convert.ToDouble(budgetAtCompletion.Result)) * effort.Result;
@@ -649,6 +677,8 @@ namespace SkripsiAppBackend.Calculations
 
             var criteria = new SpiCriteria()
             {
+                ProjectDuration = projectDuration.Result,
+                TotalEffort = totalEffort.Result,
                 ActualDuration = actualDuration,
                 EffortQuota = effortQuota,
                 CompletedEffort = completedEffort
