@@ -90,12 +90,11 @@ builder.Services.AddInMemoryObjectCaching(
     typeof(IAzureDevopsService.Team)
 );
 
-builder.Services.AddSingleton((service) =>
+Database.Migrate(applicationConfiguration.ConnectionString);
+builder.Services.AddScoped((service) =>
 {
-    return new Database(
-        service.GetRequiredService<InMemoryUniversalCachingService>(),
-        applicationConfiguration.ConnectionString
-    );
+    var cache = service.GetRequiredService<InMemoryUniversalCachingService>();
+    return new Database(applicationConfiguration.ConnectionString).AddCache(cache);
 });
 
 builder.Services.AddAzureDevopsService(AzureDevopsServiceType.REST);
@@ -133,8 +132,8 @@ if (
         applicationConfiguration.TlsCertificatePath,
         applicationConfiguration.TlsPrivateKeyPath);
 
-    // Bloody fucking hell. I spent an entire day wondering why the HTTPS connection kept failing.
-    // Error logs hidden by default. I set the logging level to trace.
+    // Bloody fucking hell. I've spent an entire day wondering why the HTTPS connection kept failing.
+    // Error logs hidden by default. I've set the logging level to trace.
     // See : https://github.com/dotnet/runtime/issues/45680
     cert = new X509Certificate2(cert.Export(X509ContentType.Pkcs12));
 

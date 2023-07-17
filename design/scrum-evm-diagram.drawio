@@ -1,6 +1,6 @@
-<mxfile host="65bd71144e">
+<mxfile host="65bd71144e" scale="5" border="10">
     <diagram id="amNv9ukt2pe7MVWZNoAQ" name="Page-1">
-        <mxGraphModel dx="1602" dy="517" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1919" dy="701" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -81,9 +81,9 @@
                 <mxCell id="44" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.25;exitDx=0;exitDy=0;dashed=1;" parent="1" source="21" target="33" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="88" value="Produces" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="44" vertex="1" connectable="0">
+                <mxCell id="88" value="Menghasilkan" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="44" vertex="1" connectable="0">
                     <mxGeometry x="0.1713" relative="1" as="geometry">
-                        <mxPoint x="10" as="offset"/>
+                        <mxPoint x="20" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="21" value="Financial Execution" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
@@ -114,9 +114,9 @@
                 <mxCell id="41" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;dashed=1;" parent="1" source="33" target="36" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="93" value="Used in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="41" vertex="1" connectable="0">
+                <mxCell id="93" value="Digunakan dalam" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="41" vertex="1" connectable="0">
                     <mxGeometry x="0.4329" relative="1" as="geometry">
-                        <mxPoint x="8" as="offset"/>
+                        <mxPoint x="-12" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="33" value="Expenditure" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
@@ -128,9 +128,9 @@
                 <mxCell id="39" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;" parent="1" source="36" target="37" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="92" value="Outputs" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="39" vertex="1" connectable="0">
+                <mxCell id="92" value="Mengeluarkan nilai" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="39" vertex="1" connectable="0">
                     <mxGeometry x="-0.6621" y="2" relative="1" as="geometry">
-                        <mxPoint x="34" y="2" as="offset"/>
+                        <mxPoint x="45" y="2" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="36" value="Earned Value Management" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
@@ -145,9 +145,9 @@
                         <mxPoint x="131" y="750" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="89" value="Produces" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="45" vertex="1" connectable="0">
+                <mxCell id="89" value="Menghasilkan" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="45" vertex="1" connectable="0">
                     <mxGeometry x="-0.4406" y="-1" relative="1" as="geometry">
-                        <mxPoint x="-6" y="1" as="offset"/>
+                        <mxPoint x="-16" y="1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="46" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;dashed=1;" parent="1" source="3" target="18" edge="1">
@@ -156,7 +156,7 @@
                         <mxPoint x="131" y="750" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="90" value="Produces" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="46" vertex="1" connectable="0">
+                <mxCell id="90" value="Menghasilkan" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="46" vertex="1" connectable="0">
                     <mxGeometry x="-0.006" y="2" relative="1" as="geometry">
                         <mxPoint x="-2" y="45" as="offset"/>
                     </mxGeometry>
@@ -167,9 +167,9 @@
                         <mxPoint x="71" y="570" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="91" value="Produces" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="47" vertex="1" connectable="0">
+                <mxCell id="91" value="Menghasilkan" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="47" vertex="1" connectable="0">
                     <mxGeometry x="-0.6921" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
+                        <mxPoint x="-14" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="48" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="37" target="22" edge="1">
@@ -178,7 +178,7 @@
                         <mxPoint x="131" y="750" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="87" value="Impacts" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="48" vertex="1" connectable="0">
+                <mxCell id="87" value="Mempengaruhi" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="48" vertex="1" connectable="0">
                     <mxGeometry x="-0.7528" y="1" relative="1" as="geometry">
                         <mxPoint x="-1" y="14" as="offset"/>
                     </mxGeometry>
@@ -189,15 +189,15 @@
                         <mxPoint x="610" y="490" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="86" value="Impacts" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="50" vertex="1" connectable="0">
+                <mxCell id="86" value="Mempengaruhi" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" parent="50" vertex="1" connectable="0">
                     <mxGeometry x="-0.5734" relative="1" as="geometry">
                         <mxPoint y="60" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="52" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Iteration Period&lt;/b&gt;&lt;br&gt;2 weeks - 1 month&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                <mxCell id="52" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Periode Iterasi&lt;/b&gt;&lt;br&gt;2 weeks - 1 month&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="240" y="375" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="53" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Iteration Period&lt;/b&gt;&lt;br&gt;1 month&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                <mxCell id="53" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Periode Iterasi&lt;/b&gt;&lt;br&gt;1 month&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="240" y="825" width="120" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="95" value="" style="group" parent="1" vertex="1" connectable="0">
@@ -209,7 +209,7 @@
                 <mxCell id="61" value="" style="group" parent="95" vertex="1" connectable="0">
                     <mxGeometry x="10" y="5" width="190" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="58" value="Scrum iteration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="61" vertex="1">
+                <mxCell id="58" value="Iterasi Scrum" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="61" vertex="1">
                     <mxGeometry x="30" width="160" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="59" value="" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="61" vertex="1">
@@ -218,7 +218,7 @@
                 <mxCell id="65" value="" style="group" parent="95" vertex="1" connectable="0">
                     <mxGeometry x="10" y="45" width="190" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="66" value="Financial iteration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="65" vertex="1">
+                <mxCell id="66" value="Iterasi Finansial" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="65" vertex="1">
                     <mxGeometry x="30" width="160" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="67" value="" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fillColor=#d5e8d4;strokeColor=#82b366;" parent="65" vertex="1">
@@ -227,7 +227,7 @@
                 <mxCell id="68" value="" style="group" parent="95" vertex="1" connectable="0">
                     <mxGeometry x="10" y="84" width="190" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="69" value="Artifact" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="68" vertex="1">
+                <mxCell id="69" value="Artefak" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="68" vertex="1">
                     <mxGeometry x="30" width="160" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="70" value="" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="68" vertex="1">
@@ -239,7 +239,7 @@
                         <mxPoint x="230" y="20" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="78" value="Cycle" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="95" vertex="1">
+                <mxCell id="78" value="Aliran siklus" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="95" vertex="1">
                     <mxGeometry x="240" y="5" width="160" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="81" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=14;dashed=1;" parent="95" edge="1">
@@ -248,8 +248,48 @@
                         <mxPoint x="230" y="61" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="82" value="Relationship" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="95" vertex="1">
+                <mxCell id="82" value="Hubungan" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="95" vertex="1">
                     <mxGeometry x="240" y="45" width="160" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="vEhD1uzv_ZHhY4a_VT8U" name="finance">
+        <mxGraphModel dx="516" dy="339" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-1" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="-ZMB7M-IP9GSnCkyMNcq-2" target="-ZMB7M-IP9GSnCkyMNcq-4">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="470" y="770"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-2" value="Financial Execution" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+                    <mxGeometry x="250" y="730" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-3" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;fontSize=14;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="-ZMB7M-IP9GSnCkyMNcq-4" target="-ZMB7M-IP9GSnCkyMNcq-6">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="470" y="930"/>
+                            <mxPoint x="150" y="930"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-4" value="Financial Monitoring&lt;br&gt;and Evaluation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+                    <mxGeometry x="410" y="810" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-5" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;startArrow=none;" edge="1" parent="1" source="-ZMB7M-IP9GSnCkyMNcq-6" target="-ZMB7M-IP9GSnCkyMNcq-2">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-6" value="Financial Planning" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="810" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="-ZMB7M-IP9GSnCkyMNcq-7" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Periode Iterasi&lt;/b&gt;&lt;br&gt;1 month&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                    <mxGeometry x="250" y="835" width="120" height="30" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

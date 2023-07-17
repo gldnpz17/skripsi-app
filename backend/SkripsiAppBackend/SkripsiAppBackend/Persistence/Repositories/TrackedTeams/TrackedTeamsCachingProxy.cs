@@ -5,11 +5,11 @@ namespace SkripsiAppBackend.Persistence.Repositories.TrackedTeams
 {
     public class TrackedTeamsCachingProxy : ITrackedTeamsRepository
     {
-        private readonly TrackedTeamsRepository repository;
+        private readonly ITrackedTeamsRepository repository;
         private readonly InMemoryUniversalCachingService cache;
 
         public TrackedTeamsCachingProxy(
-            TrackedTeamsRepository repository,
+            ITrackedTeamsRepository repository,
             InMemoryUniversalCachingService cache)
         {
             this.repository = repository;

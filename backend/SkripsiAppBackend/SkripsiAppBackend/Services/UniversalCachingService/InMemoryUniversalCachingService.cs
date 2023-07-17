@@ -96,7 +96,7 @@ namespace SkripsiAppBackend.Services.UniversalCachingService
                 // This is stupid. But it'll do.
                 while (true)
                 {
-                    await Task.Delay(100);
+                    await Task.Delay(10);
                     if (!fetchLock.ContainsKey(key))
                     {
                         break;

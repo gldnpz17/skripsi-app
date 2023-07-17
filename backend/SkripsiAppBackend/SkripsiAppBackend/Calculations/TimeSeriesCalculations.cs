@@ -151,7 +151,9 @@ namespace SkripsiAppBackend.Calculations
         {
             public int Index { get; set; }
             public double Velocity { get; set; }
-            public double Effort { get; set; }
+            public double CompletedEffort { get; set; }
+            public double IncompleteEffort { get; set; }
+            public double TotalEffort { get; set; }
             public double Duration { get; set; }
             public double MinimumAverageVelocity { get; set; }
         }
@@ -192,17 +194,22 @@ namespace SkripsiAppBackend.Calculations
                 {
                     var workItems = await azureDevops.ReadSprintWorkItems(organizationName, projectId, teamId, sprint.Id);
                     var completedWorkItems = workItems.Where(workItem => workItem.State == IAzureDevopsService.WorkItemState.Done).ToList();
+                    var incompleteWorkItems = workItems.Where(workItem => workItem.State != IAzureDevopsService.WorkItemState.Done).ToList();
 
-                    var effort = common.CalculateTotalEffort(completedWorkItems);
+                    var completedEffort = common.CalculateTotalEffort(completedWorkItems);
+                    var incompleteEffort = common.CalculateTotalEffort(incompleteWorkItems);
+                    var totalEffort = common.CalculateTotalEffort(workItems);
                     var duration = ((DateTime)sprint.StartDate).WorkingDaysUntil((DateTime)sprint.EndDate, workDays.Result);
 
-                    var velocity = effort / duration;
+                    var velocity = completedEffort / duration;
 
                     return new VelocityChartItem()
                     {
                         Index = index,
                         Duration = duration,
-                        Effort = effort,
+                        CompletedEffort = completedEffort,
+                        IncompleteEffort = incompleteEffort,
+                        TotalEffort = totalEffort,
                         Velocity = velocity
                     };
                 });
@@ -222,7 +229,7 @@ namespace SkripsiAppBackend.Calculations
                 item.MinimumAverageVelocity = minAverageVelocity;
                 items[i] = item;
 
-                remainingEffort -= item.Effort;
+                remainingEffort -= item.CompletedEffort;
                 remainingDuration -= item.Duration;
             }
 

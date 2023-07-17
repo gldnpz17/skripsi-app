@@ -12,26 +12,26 @@ namespace SkripsiAppBackend.Persistence
     public class Database
     {
         private readonly string connectionString;
-        private readonly int version;
 
         public ITrackedTeamsRepository TrackedTeams { get; private set; }
         public IReportsRepository Reports { get; private set; }
 
-        public Database(
-            InMemoryUniversalCachingService cache,
-            string connectionString, 
-            int version = 100)
+        public Database(string connectionString)
         {
             this.connectionString = connectionString;
-            this.version = version;
 
-            TrackedTeams = new TrackedTeamsCachingProxy(new TrackedTeamsRepository(connectionString), cache);
-            Reports = new ReportsCachingProxy(new ReportsRepository(connectionString), cache);
-
-            Migrate();
+            TrackedTeams = new TrackedTeamsRepository(connectionString);
+            Reports = new ReportsRepository(connectionString);
         }
 
-        public void Migrate()
+        public Database AddCache(InMemoryUniversalCachingService cache)
+        {
+            TrackedTeams = new TrackedTeamsCachingProxy(TrackedTeams, cache);
+            Reports = new ReportsCachingProxy(Reports, cache);
+            return this;
+        }
+
+        public static void Migrate(string connectionString, int version = 100)
         {
             Console.WriteLine($"Attempting to migrate database to version {version}.");
 
