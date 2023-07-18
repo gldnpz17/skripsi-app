@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react"
 
-const usePersistedValue = (key, defaltValue = null) => {
-  const storedValue = window.localStorage.getItem(key)
+const tryParseStoredValue = (valueStr) => {
+  let value = valueStr
+  try {
+    value = JSON.parse(valueStr)
+    return value
+  } catch {
+    return value
+  }
+}
 
-  const [value, setValue] = useState(storedValue ? JSON.parse(storedValue) : defaltValue)
+const usePersistedState = (key, defaultValue = null) => {
+  const storedValue = window.localStorage.getItem(key)
+  const [value, setValue] = useState(storedValue ? tryParseStoredValue(storedValue) : defaultValue)
 
   useEffect(() => {
     if (!storedValue) {
-      window.localStorage.setItem(key, defaltValue)
+      window.localStorage.setItem(key, defaultValue)
     } 
   }, [])
 
@@ -28,4 +37,4 @@ const usePersistedValue = (key, defaltValue = null) => {
   ]
 }
 
-export { usePersistedValue }
+export { usePersistedState }

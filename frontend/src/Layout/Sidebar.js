@@ -1,7 +1,7 @@
 import { useQuery } from "react-query"
 import { Link, Outlet, useMatch } from "react-router-dom"
 import { getSelfProfile } from "../api-requests/Profile"
-import { Configuration, Dashboard, LogOut, Project, Team } from "../common/icons"
+import { Configuration, Dashboard, LogOut, Project, ReportBox, Team } from "../common/icons"
 import { Logo } from "../Components/Common/Logo"
 
 const SidebarItem = ({ icon, label, href, pathMatch }) => {
@@ -24,7 +24,8 @@ const SidebarItem = ({ icon, label, href, pathMatch }) => {
 
 const SidebarItems = [
   { icon: <Dashboard />, label: 'Dashboard', href: '/' },
-  { icon: <Team />, label: 'My Teams', href: '/teams', pathMatch: '/teams' }
+  { icon: <ReportBox />, label: 'Progress Report', href: '/progress-report', pathMatch: '/progress-report' },
+  { icon: <Team />, label: 'My Teams', href: '/teams', pathMatch: '/teams' },
 ]
 
 const LayoutSidebar = () => {

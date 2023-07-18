@@ -15,87 +15,14 @@ import { DateTime } from "luxon"
 import { ExternalLink } from "../Components/Common/ExternalLink"
 import { ErrorPlaceholder } from "../Components/Common/ErrorPlaceholder"
 import { Skeleton } from "../Components/Common/Skeleton"
-import { usePersistedValue } from "../Hooks/usePersistedState"
+import { usePersistedState } from "../Hooks/usePersistedState"
 import { withAuth } from "../HigherOrderComponents/withAuth"
 import 'chartjs-adapter-luxon';
-
-const PinButton = ({ pinned, togglePin }) => {
-  const onClick = (e) => {
-    e.stopPropagation()
-    togglePin()
-  }
-
-  return (
-    <button
-      className={`${pinned ? 'block' : 'hidden group-hover/item:block'}`}
-      {...{ onClick }}
-    >
-      {pinned && (
-        <div className='group/button'>
-          <PinFilled className='h-4 block group-hover/button:hidden' />
-          <PinFilledOff className='h-4 hidden group-hover/button:block' />
-        </div>
-      )}
-      {!pinned && (
-        <div className='group/button'>
-          <PinOutline className='h-4 block group-hover/button:hidden' />
-          <PinFilled className='h-4 hidden group-hover/button:block' />
-        </div>
-      )}
-    </button>
-  )
-}
-
-const TeamListItem = ({ team: { name }, selected = false, onClick, pinned, togglePin }) => {
-  return (
-    <div
-      {...{ onClick }}
-      className='group/item relative border border-gray-700 rounded-md cursor-pointer overflow-hidden duration-150 hover:brightness-125 bg-dark-2'
-    >
-      <div className={`absolute top-0 bottom-0 left-0 w-1 ${selected && 'bg-secondary-dark'} duration-150`} />
-      <span className='px-4 py-2 flex'>
-        <span className='flex-grow font-semibold overflow-hidden whitespace-nowrap mr-2 overflow-ellipsis'>
-          {name}
-        </span>
-        <PinButton {...{ pinned, togglePin }} />
-        {/* TODO: Implement health status icons. */}
-        {/* <span className={`${Format.statusColor('Healthy', 'text-')}`}>
-          {Format.status('Healthy')}
-        </span> */}
-      </span>
-    </div>
-  )
-}
-
-const TeamsListSection = ({ setSelectedTeam, teams, teamsLoading, teamPinned, togglePin }) => {
-  return (
-    <div>
-      <div className='mb-3 text-gray-300 font-semibold'>Teams</div>
-      {!teamsLoading && (
-        <>
-          <div className='flex flex-col gap-4 mb-6'>
-            {teams.filter(team => !team.archived).map(team => (
-              <TeamListItem
-                key={team.id}
-                selected={false}
-                onClick={() => setSelectedTeam(team)}
-                pinned={teamPinned(team)}
-                togglePin={togglePin(team)}
-                {...{ team }} 
-              />
-            ))}
-          </div>
-          <a href='/track-new' target='_blank'>
-            <Button className='w-full'>
-              <PlusCircle className='h-4' />
-              <span>Track Team</span>
-            </Button>
-          </a>
-        </>
-      )}
-    </div>
-  )
-}
+import { TeamSelection } from "../Components/Dashboard/TeamSelection"
+import { Divider } from "../Components/Dashboard/Common/Divider"
+import { DashboardLayout } from "../Components/Dashboard/DashboardLayout"
+import { useTeams } from "../Hooks/Dashboard/useTeams"
+import { TeamName } from "../Components/Dashboard/TeamName"
 
 ChartJS.register(LinearScale, CategoryScale, PointElement, LineElement, BarController, BarElement, Title, Tooltip, Legend, TimeScale)
 
@@ -982,17 +909,11 @@ const TimelineSection = ({
 const NewTeamDetailsSection = ({ selectedTeam, perfIndexExpanded, setPerfIndexExpanded }) => {
   const organizationName = selectedTeam.organization.name
   const projectId = selectedTeam.project.id
-  const projectName = selectedTeam.project.name
   const teamId = selectedTeam.id
-  const teamName = selectedTeam.name
 
   const togglePerfIndexExpanded = useCallback(() => {
     setPerfIndexExpanded(!perfIndexExpanded)
   }, [perfIndexExpanded])
-
-  const azureDevopsUrl = useMemo(() => {
-    return `https://dev.azure.com/${encodeURIComponent(organizationName)}/${encodeURIComponent(projectName)}/_boards/board/t/${encodeURIComponent(teamName)}/Backlog%20items`
-  }, [organizationName, projectName, teamName])
 
   const {
     isLoading: reportMetricsLoading,
@@ -1122,21 +1043,6 @@ const NewTeamDetailsSection = ({ selectedTeam, perfIndexExpanded, setPerfIndexEx
 
   return (
     <div className='grid grid-cols-12 gap-4 mb-12'>
-      {/* Team Name */}
-      <div className='col-span-12 flex items-center'>
-        <div className='flex-grow'>
-          <div className='text-2xl'>{teamName} - {projectName}</div>
-          <ExternalLink to={`/teams/${organizationName}/${projectId}/${teamId}`}>
-            Team Settings
-          </ExternalLink>
-        </div>
-        <a href={azureDevopsUrl} target='_blank'>
-          <Button className='shadow-xl'>
-            <AzureDevops className='h-4' />
-            Azure DevOps Board
-          </Button>
-        </a>
-      </div>
       {/* SPI */}
       <div className='col-span-6'>
         {spiError && (
@@ -1269,76 +1175,21 @@ const NoSelectedTeamPlaceholder = () => (
 )
 
 const Page = () => {
-  const {
-    data: teams,
-    isLoading: teamsLoading
-  } = useQuery(['projects', 'tracked'], readTrackedTeams)
-
-  const [selectedTeam, setSelectedTeam] = useState(undefined)
+  const { teams, teamsLoading, setSelectedTeamId, selectedTeam, pin: { teamPinned, togglePin } } = useTeams()
   const [perfIndexExpanded, setPerfIndexExpanded] = useState(false)
-  
-  useEffect(() => {
-    if (!teams) return
-
-    const storedTeamId = window.localStorage.getItem('defaultTeamId')
-    const storedTeam = teams.find(team => team.id === storedTeamId)
-    
-    if (storedTeam) {
-      setSelectedTeam(storedTeam)
-    } else {
-      if (teams.length > 0) {
-        setSelectedTeam(teams[0])
-      } else {
-        setSelectedTeam(undefined)
-      }
-    }
-  }, [teamsLoading, teams])
-
-  const setSelectedTeamProxy = (team) => {
-    window.localStorage.setItem('defaultTeamId', team.id)
-    setSelectedTeam(team)
-  }
-
-  const [pinnedTeamIds, setPinnedTeamIds] = usePersistedValue('pinnedTeamIds', [])
-
-  const teamPinned = useCallback((team) => Boolean(pinnedTeamIds.find(id => id === team.id)), [pinnedTeamIds])
-
-  const togglePin = useCallback((team) => () => {
-    const newList = [...pinnedTeamIds]
-    if (newList.find(id => id === team.id)) {
-      setPinnedTeamIds(newList.filter(id => id !== team.id))
-    } else {
-      setPinnedTeamIds([...newList, team.id])
-    }
-  }, [pinnedTeamIds])
-
-  const sortedTeams = useMemo(() => {
-    if (!teams) return []
-    const pinnedTeams = teams.filter(team => Boolean(pinnedTeamIds.find(id => id === team.id)))
-    const unpinnedTeams = teams.filter(team => !Boolean(pinnedTeamIds.find(id => id === team.id)))
-    return [...pinnedTeams, ...unpinnedTeams]
-  }, [teams, pinnedTeamIds])
 
   return (
-    <div className='h-full overflow-auto'>
-      <div className='mr-80 mt-8'>
-        {selectedTeam && (
+    <DashboardLayout {...{ teams, teamsLoading, setSelectedTeamId, teamPinned, togglePin }}>
+      {selectedTeam && (
+        <>
+          <TeamName team={selectedTeam} />
           <NewTeamDetailsSection {...{ selectedTeam, perfIndexExpanded, setPerfIndexExpanded }}  />
-        )}
-        {selectedTeam === null && (
-          <NoSelectedTeamPlaceholder />
-        )}
-      </div>
-      <div className='w-64 top-8 bottom-0 right-12 fixed pl-4'>
-        {/* Divider */}
-        <div className='w-px absolute top-0 bottom-8 left-0 bg-gray-700' />
-        <TeamsListSection
-          setSelectedTeam={setSelectedTeamProxy}
-          teams={sortedTeams}
-          {...{ teamsLoading, teamPinned, togglePin }}
-        />
-      </div>
-    </div>
+        </>
+      )}
+      {selectedTeam === null && (
+        <NoSelectedTeamPlaceholder />
+      )}
+    </DashboardLayout>
   )
 }
 

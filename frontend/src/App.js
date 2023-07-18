@@ -15,6 +15,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './HigherOrderComponents/withAuth';
 import { MathJaxContext } from 'better-react-mathjax';
+import { ProgressReportPage } from './pages/ProgressReport';
 
 const queryClient = new QueryClient()
 const darkTheme = createTheme({
@@ -39,6 +40,7 @@ function App() {
                   <Route path='teams/:organizationName/:projectId/:teamId' element={<TeamDetailsPage />} />
                   <Route path='teams/:organizationName/:projectId/:teamId/reports/create' element={<NewReportPage />} />
                   <Route path='team/:organizationName/:projectId/:teamId/reports/:reportId/edit' element={<EditReportPage />} />
+                  <Route path='progress-report' element={<ProgressReportPage />} />
                 </Route>
                 <Route path='login' element={<LoginPage />} />
                 <Route path='oauth-success' element={<OAuthSuccessPage />} />
